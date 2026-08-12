@@ -104,6 +104,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .map-fallback { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; padding: 11px 15px; background: rgba(255,253,247,.94); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
 .map-fallback strong, .map-fallback span { display: block; }
 .map-fallback strong { font-size: 13px; }.map-fallback span { margin-top: 2px; color: var(--text-secondary); font-size: 11px; }
+.map-fallback button { min-height: 34px; margin-left: 8px; padding: 0 12px; border: 0; border-radius: 8px; color: white; background: var(--accent); cursor: pointer; font: 600 11px var(--font-inter), sans-serif; }
 .map-legend { position: absolute; top: 14px; left: 14px; display: flex; align-items: center; gap: 13px; padding: 8px 11px; background: rgba(255,253,247,.92); border: 1px solid rgba(210,201,187,.9); border-radius: 9px; box-shadow: 0 5px 15px rgba(55,45,32,.08); backdrop-filter: blur(9px); }
 .map-legend span { display: flex; align-items: center; gap: 5px; color: #625b51; font-size: 10px; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; }.legend-dot.ot { background: var(--ot); }.legend-dot.nt { background: var(--nt); }.legend-line { width: 16px; border-top: 2px dashed var(--accent); }

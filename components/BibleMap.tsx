@@ -10,7 +10,16 @@ import { storylineById } from "@/data/storylines";
 import type { BibleEvent } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
 
-const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/positron";
+const MAP_PROXY_PATH = "/api/map/";
+const DEFAULT_MAP_STYLE_URL = `${MAP_PROXY_PATH}styles/positron`;
+const MAP_LOAD_TIMEOUT_MS = 15_000;
+
+function mapRequestUrl(url: string): string {
+  const externalMapPrefix = "https://tiles.openfreemap.org/";
+  return url.startsWith(externalMapPrefix)
+    ? `${MAP_PROXY_PATH}${url.slice(externalMapPrefix.length)}`
+    : url;
+}
 
 type BibleMapProps = {
   visibleEvents: BibleEvent[];
@@ -70,7 +79,8 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
     try {
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: MAP_STYLE_URL,
+        style: process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
+        transformRequest: (url) => ({ url: mapRequestUrl(url) }),
         center: [34.7, 32.3],
         zoom: 4.2,
         minZoom: 2.4,
@@ -78,8 +88,12 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
         attributionControl: false,
       });
       mapRef.current = map;
+      const loadTimeout = window.setTimeout(() => {
+        if (!map.loaded()) setMapFailed(true);
+      }, MAP_LOAD_TIMEOUT_MS);
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
       map.on("load", () => {
+        window.clearTimeout(loadTimeout);
         map.addSource("biblical-route", { type: "geojson", data: route });
         map.addLayer({ id: "biblical-route-shadow", type: "line", source: "biblical-route", paint: { "line-color": "#fff8e8", "line-width": 7, "line-opacity": 0.8 } });
         map.addLayer({ id: "biblical-route", type: "line", source: "biblical-route", paint: { "line-color": ["coalesce", ["get", "color"], "#ba6437"], "line-width": 3, "line-opacity": 0.9, "line-dasharray": [1.5, 1] } });
@@ -106,7 +120,9 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
         }
         setMapReady(true);
       });
-      map.on("error", () => setMapFailed(true));
+      map.on("error", (event) => {
+        if (!map.loaded() && event.error) setMapFailed(true);
+      });
     } catch {
       setMapFailed(true);
       return;
@@ -142,7 +158,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
     <section className="map-stage" aria-label="Интерактивная карта библейской истории">
       <div ref={containerRef} className="map-canvas" />
       {!mapReady && !mapFailed && <div className="map-loading"><span className="spinner" />Загружаем карту…</div>}
-      {mapFailed && <div className="map-fallback"><WifiOff size={22} /><div><strong>Карта сейчас недоступна</strong><span>События, поиск и временная шкала продолжают работать.</span></div></div>}
+      {mapFailed && <div className="map-fallback"><WifiOff size={22} /><div><strong>Не удалось загрузить подложку</strong><span>Проверьте соединение и попробуйте ещё раз.</span></div><button type="button" onClick={() => window.location.reload()}>Повторить</button></div>}
       {historicalRegionsEnabled && <div className="region-wash" aria-label="Учебный слой исторических областей"><span className="region region-egypt">ЕГИПЕТ</span><span className="region region-canaan">ХАНААН</span><span className="region region-mesopotamia">МЕСОПОТАМИЯ</span></div>}
       <div className="map-legend" aria-label="Условные обозначения"><span><i className="legend-dot ot" />Ветхий Завет</span><span><i className="legend-dot nt" />Новый Завет</span><span><i className="legend-line" />маршрут по Писанию</span></div>
       <div className="map-controls">
