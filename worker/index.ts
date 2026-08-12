@@ -75,6 +75,13 @@ const worker = {
     const upstreamMapUrl = mapUpstreamUrl(url);
     if (upstreamMapUrl) return proxyMapAsset(request, upstreamMapUrl);
 
+    // MapLibre resolves its module worker at runtime, so vinext cannot mark the
+    // request as a static asset during compilation. Serve this known asset
+    // directly from the Sites asset binding.
+    if (url.pathname === "/assets/maplibre-gl-worker.mjs") {
+      return env.ASSETS.fetch(request);
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {

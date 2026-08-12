@@ -12,7 +12,8 @@ import { useBibleStore } from "@/store/useBibleStore";
 
 const MAP_PROXY_PATH = "/api/map/";
 const DEFAULT_MAP_STYLE_URL = `${MAP_PROXY_PATH}styles/positron`;
-const MAP_LOAD_TIMEOUT_MS = 15_000;
+
+maplibregl.setWorkerUrl("/assets/maplibre-gl-worker.mjs");
 
 function mapRequestUrl(url: string): string {
   const externalMapPrefix = "https://tiles.openfreemap.org/";
@@ -88,12 +89,8 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
         attributionControl: false,
       });
       mapRef.current = map;
-      const loadTimeout = window.setTimeout(() => {
-        if (!map.loaded()) setMapFailed(true);
-      }, MAP_LOAD_TIMEOUT_MS);
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
       map.on("load", () => {
-        window.clearTimeout(loadTimeout);
         setMapFailed(false);
         map.addSource("biblical-route", { type: "geojson", data: route });
         map.addLayer({ id: "biblical-route-shadow", type: "line", source: "biblical-route", paint: { "line-color": "#fff8e8", "line-width": 7, "line-opacity": 0.8 } });
