@@ -95,25 +95,23 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .continue-card { width: 100%; min-height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); text-align: left; cursor: pointer; }.continue-card b,.continue-card small { display:block; }.continue-card b { font-size: 12px; }.continue-card small { margin-top: 3px; color: var(--text-secondary); font-size: 10px; }
 
 .map-column { position: relative; min-width: 0; flex: 1; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
-.map-stage { position: relative; min-height: 0; overflow: hidden; background: #dce4df; }
-.map-canvas { position: absolute; inset: 0; }
-.map-canvas::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 80px rgba(79, 66, 48, .1); }
-.map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-secondary); background: #e8ebe3; }
-.spinner { width: 22px; height: 22px; border: 2px solid #c9c2b3; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.map-fallback { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; padding: 11px 15px; background: rgba(255,253,247,.94); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
-.map-fallback strong, .map-fallback span { display: block; }
-.map-fallback strong { font-size: 13px; }.map-fallback span { margin-top: 2px; color: var(--text-secondary); font-size: 11px; }
-.map-fallback button { min-height: 34px; margin-left: 8px; padding: 0 12px; border: 0; border-radius: 8px; color: white; background: var(--accent); cursor: pointer; font: 600 11px var(--font-inter), sans-serif; }
+.map-stage { position: relative; min-height: 0; overflow: hidden; background: #d3e2df; }
+.biblical-geography { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; }
+.biblical-geography:active { cursor: grabbing; }
+.country-shapes path { fill: #e9e3d4; stroke: #b8b4a6; stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.country-shapes path:nth-child(3n) { fill: #eee7d8; }.country-shapes path:nth-child(3n + 1) { fill: #e4ddcc; }
+.geography-water ellipse { fill: #a8cfca; stroke: #719f9c; stroke-width: 1; vector-effect: non-scaling-stroke; }.geography-water path { fill: none; stroke: #6d9e9c; stroke-width: 2.2; vector-effect: non-scaling-stroke; }
+.historical-regions ellipse { fill: rgba(192,143,65,.09); stroke: rgba(139,92,44,.45); stroke-width: 1.2; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }.historical-regions text { fill: rgba(91,65,41,.63); text-anchor: middle; dominant-baseline: middle; font: 700 12px var(--font-lora),serif; letter-spacing: .12em; }
+.map-place-labels text { fill: #716b5e; text-anchor: middle; paint-order: stroke; stroke: rgba(247,244,235,.92); stroke-width: 3px; stroke-linejoin: round; font: 600 10px var(--font-inter),sans-serif; }
+.biblical-route polyline { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
+.biblical-marker { cursor: pointer; outline: none; }.biblical-marker circle { stroke: #fffdf6; stroke-width: 2.2; vector-effect: non-scaling-stroke; transition: r .18s ease; }.biblical-marker circle.ot { fill: var(--ot); }.biblical-marker circle.nt { fill: var(--nt); }.biblical-marker .marker-core { fill: white; stroke: none; }.biblical-marker.active circle:first-child { stroke: #fff; stroke-width: 4; filter: drop-shadow(0 2px 4px #3d2e2080); }.biblical-marker:focus-visible circle:first-child { stroke: #28251f; stroke-width: 3; }.biblical-marker text { fill: #554231; paint-order: stroke; stroke: #fffdf7; stroke-width: 3px; font: 700 10px var(--font-inter),sans-serif; }
+.map-credit { position: absolute; left: 12px; bottom: 9px; padding: 5px 8px; border: 1px solid rgba(202,197,185,.85); border-radius: 7px; color: #69655d; background: rgba(255,253,247,.9); font-size: 8px; box-shadow: 0 2px 8px #33291d14; }
+.map-ready-sentinel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .map-legend { position: absolute; top: 14px; left: 14px; display: flex; align-items: center; gap: 13px; padding: 8px 11px; background: rgba(255,253,247,.92); border: 1px solid rgba(210,201,187,.9); border-radius: 9px; box-shadow: 0 5px 15px rgba(55,45,32,.08); backdrop-filter: blur(9px); }
 .map-legend span { display: flex; align-items: center; gap: 5px; color: #625b51; font-size: 10px; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; }.legend-dot.ot { background: var(--ot); }.legend-dot.nt { background: var(--nt); }.legend-line { width: 16px; border-top: 2px dashed var(--accent); }
 .map-controls { position: absolute; top: 14px; right: 14px; display: grid; background: rgba(255,253,247,.94); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 6px 18px rgba(55,45,32,.11); }
 .map-controls button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; }.map-controls button:last-child { border-bottom: 0; }.map-controls button:hover { background: #eee8db; }
-.region-wash { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(190,151,82,.07), transparent 45%, rgba(91,125,104,.05)); }
-.region { position: absolute; padding: 12px 18px; border: 1px dashed rgba(134,94,52,.42); border-radius: 50%; color: rgba(101,73,47,.55); background: rgba(218,187,128,.11); letter-spacing: .16em; font: 600 12px var(--font-lora), serif; }
-.region-egypt { left: 12%; bottom: 20%; }.region-canaan { left: 51%; top: 39%; }.region-mesopotamia { right: 8%; top: 12%; }
-.maplibregl-ctrl-bottom-left { bottom: 4px !important; }.maplibregl-ctrl-attrib { font-size: 9px !important; }
 
 .context-card { position: absolute; z-index: 8; left: 50%; bottom: 154px; width: min(710px, calc(100% - 44px)); min-height: 90px; transform: translateX(-50%); display: grid; grid-template-columns: 45px 1fr auto; align-items: center; gap: 14px; padding: 14px 16px; background: rgba(255,253,247,.95); border: 1px solid rgba(209,197,181,.95); border-radius: var(--radius-md); box-shadow: 0 12px 35px rgba(62,47,31,.16); backdrop-filter: blur(12px); }
 .context-icon { width: 43px; height: 43px; display: grid; place-items: center; color: var(--accent); background: #f1e6dc; border-radius: 50%; }.context-icon svg { width: 20px; }

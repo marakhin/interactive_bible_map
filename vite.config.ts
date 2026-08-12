@@ -1,6 +1,6 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import { copyFile, mkdir } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
@@ -13,16 +13,12 @@ const { d1, r2 } = hostingConfig;
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
-function mapLibreWorkerAsset() {
+function removeObsoleteMapAssets() {
   return {
-    name: "biblical-map:maplibre-worker-asset",
+    name: "biblical-map:remove-obsolete-assets",
     async buildStart() {
-      const publicAssets = resolve(process.cwd(), "public", "assets");
-      await mkdir(publicAssets, { recursive: true });
-      await copyFile(
-        resolve(process.cwd(), "node_modules", "maplibre-gl", "dist", "maplibre-gl-worker.mjs"),
-        resolve(publicAssets, "maplibre-gl-worker.mjs"),
-      );
+      await rm(resolve(process.cwd(), "dist", "client", "sw.js"), { force: true });
+      await rm(resolve(process.cwd(), "dist", "client", "assets", "maplibre-gl-worker.mjs"), { force: true });
     },
   };
 }
@@ -64,7 +60,7 @@ export default defineConfig(async () => {
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
     plugins: [
-      mapLibreWorkerAsset(),
+      removeObsoleteMapAssets(),
       vinext(),
       sites(),
       cloudflare({

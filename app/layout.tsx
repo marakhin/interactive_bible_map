@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Lora } from "next/font/google";
-import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["cyrillic", "latin"] });

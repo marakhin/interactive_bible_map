@@ -11,17 +11,20 @@
     "start": "vinext start",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:map": "node tests/map-browser-check.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@types/topojson-client": "^3.1.5",
     "drizzle-orm": "0.45.2",
     "lucide-react": "^1.31.0",
     "magic-string": "^0.30.21",
-    "maplibre-gl": "^6.3.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },

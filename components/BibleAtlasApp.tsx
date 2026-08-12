@@ -80,7 +80,11 @@ export default function BibleAtlasApp() {
   }, [storyPlaying, storySpeed, activeStorylineId]);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) registration.unregister();
+    }).catch(() => undefined);
+    if ("caches" in window) caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("biblical-map-")).map((key) => caches.delete(key)))).catch(() => undefined);
   }, []);
 
   const visibleEvents = useMemo(() => {
