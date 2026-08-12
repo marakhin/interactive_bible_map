@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, ChevronDown, Info, MapPin, Share2, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, Info, MapPin, Share2, Users, X } from "lucide-react";
 import { characterById } from "@/data/characters";
 import { eventById, events } from "@/data/events";
 import { locationById } from "@/data/locations";
@@ -21,6 +21,8 @@ export function EventSheet() {
   const selectLocation = useBibleStore((state) => state.selectLocation);
   const sheetTab = useBibleStore((state) => state.sheetTab);
   const setSheetTab = useBibleStore((state) => state.setSheetTab);
+  const bookmarkIds = useBibleStore((state) => state.bookmarkIds);
+  const toggleBookmark = useBibleStore((state) => state.toggleBookmark);
   const event = activeEventId ? eventById.get(activeEventId) : undefined;
   if (!event) return null;
   const mainLocation = event.locations.map((item) => locationById.get(item.locationId)).find(Boolean);
@@ -35,7 +37,7 @@ export function EventSheet() {
       <button className="sheet-handle" aria-label="Закрыть карточку" onClick={() => selectEvent(undefined)}><ChevronDown size={19} /></button>
       <div className="event-sheet-head">
         <div><span className={`testament-badge ${event.testament.toLowerCase()}`}>{event.testament === "OT" ? "Ветхий Завет" : "Новый Завет"}</span><h2>{event.titleRu}</h2></div>
-        <button className="close-button" aria-label="Закрыть" onClick={() => selectEvent(undefined)}><X size={20} /></button>
+        <div className="sheet-head-actions"><button className="close-button" aria-label={bookmarkIds.includes(event.id) ? "Удалить из закладок" : "Добавить в закладки"} onClick={() => toggleBookmark(event.id)}><Bookmark size={20} fill={bookmarkIds.includes(event.id) ? "currentColor" : "none"} /></button><button className="close-button" aria-label="Закрыть" onClick={() => selectEvent(undefined)}><X size={20} /></button></div>
       </div>
       <div className="event-meta"><span><CalendarDays size={16} />{event.chronology.displayRu}</span>{mainLocation && <button onClick={() => { selectEvent(undefined); selectLocation(mainLocation.id); }}><MapPin size={16} />{mainLocation.ancientNameRu}</button>}</div>
       <div className="sheet-tabs" role="tablist">

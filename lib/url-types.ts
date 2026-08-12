@@ -5,5 +5,6 @@ export interface BibleStateSnapshot {
   activeStorylineId?: string;
   activeCharacterId?: string;
   activeLocationId?: string;
+  activeBookId?: string;
   testamentFilter: TestamentFilter;
 }

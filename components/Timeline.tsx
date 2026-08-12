@@ -51,7 +51,7 @@ export function Timeline({ visibleEvents }: { visibleEvents: BibleEvent[] }) {
             if (left < 0 || left > 100) return null;
             return <button key={event.id} className={`timeline-event ${event.testament.toLowerCase()}`} style={{ left: `${left}%` }} title={event.titleRu} aria-label={event.titleRu} onClick={() => useBibleStore.getState().selectEvent(event.id)} />;
           })}
-          <input aria-label="Положение на временной шкале" type="range" min={timeWindow.start} max={timeWindow.end} value={activeTime} onChange={(event) => setTime(Number(event.target.value) || 1)} />
+          <input aria-label="Положение на временной шкале" type="range" min={timeWindow.start} max={timeWindow.end} value={activeTime} onChange={(event) => { const value = Number(event.target.value); setTime(value === 0 ? 1 : value); track("timeline_changed", { year: value }); }} />
         </div>
         <div className="timeline-ticks">{ticks.map((tick) => <span key={tick}>{Math.abs(tick) >= 1000 ? `${Math.abs(tick) / 1000} тыс.` : Math.abs(tick)}{tick < 0 ? " до Р. Х." : ""}</span>)}</div>
       </div>

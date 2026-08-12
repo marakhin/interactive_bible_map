@@ -89,6 +89,10 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .event-rail b { font-size: 12px; }
 .event-rail small { margin-top: 2px; color: var(--text-secondary); font-size: 10px; }
 .reset-selection { width: 100%; height: 42px; border: 1px solid var(--border); background: transparent; border-radius: 9px; cursor: pointer; font-size: 12px; }
+.story-player { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 6px; background: var(--surface-soft); border-radius: 9px; }
+.story-player > button { min-height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 11px; color: #fff; background: var(--accent); border: 0; border-radius: 7px; cursor: pointer; font-size: 11px; }
+.story-player > div { display: flex; gap: 3px; }.story-player > div button { width: 35px; height: 32px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; font-size: 10px; }.story-player > div button[aria-pressed="true"] { background: #fff; box-shadow: 0 2px 6px #0001; font-weight: 700; }
+.continue-card { width: 100%; min-height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); text-align: left; cursor: pointer; }.continue-card b,.continue-card small { display:block; }.continue-card b { font-size: 12px; }.continue-card small { margin-top: 3px; color: var(--text-secondary); font-size: 10px; }
 
 .map-column { position: relative; min-width: 0; flex: 1; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
 .map-stage { position: relative; min-height: 0; overflow: hidden; background: #dce4df; }
@@ -134,6 +138,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .sheet-handle { display: none; }
 .event-sheet-head { display: flex; justify-content: space-between; gap: 15px; padding: 24px 22px 11px; }
 .event-sheet-head h2 { margin: 8px 0 0; font: 600 27px/1.15 var(--font-lora), serif; }
+.sheet-head-actions { display: flex; }
 .testament-badge { display: inline-flex; min-height: 24px; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 9px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }.testament-badge.ot { color: #8d472e; background: #f4dfd2; }.testament-badge.nt { color: #166876; background: #d7ecef; }
 .event-meta { display: flex; gap: 7px; flex-wrap: wrap; padding: 0 22px 16px; }.event-meta > span, .event-meta > button { min-height: 31px; display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 7px; background: transparent; font-size: 11px; }.event-meta > button { cursor: pointer; }
 .sheet-tabs { display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 18px; border-bottom: 1px solid var(--border); }.sheet-tabs button { height: 42px; padding: 0 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 11px; }.sheet-tabs button[aria-selected="true"] { color: var(--accent); border-color: var(--accent); font-weight: 700; }

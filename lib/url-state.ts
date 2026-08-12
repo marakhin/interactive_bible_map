@@ -8,6 +8,7 @@ export function readUrlState(): Partial<BibleStateSnapshot> {
     activeStorylineId: params.get("story") ?? undefined,
     activeCharacterId: params.get("person") ?? undefined,
     activeLocationId: params.get("place") ?? undefined,
+    activeBookId: params.get("book") ?? undefined,
     testamentFilter: (params.get("testament") as BibleStateSnapshot["testamentFilter"]) ?? undefined,
   };
 }
@@ -19,6 +20,7 @@ export function writeUrlState(state: BibleStateSnapshot) {
   if (state.activeStorylineId) params.set("story", state.activeStorylineId);
   if (state.activeCharacterId) params.set("person", state.activeCharacterId);
   if (state.activeLocationId) params.set("place", state.activeLocationId);
+  if (state.activeBookId) params.set("book", state.activeBookId);
   if (state.testamentFilter !== "ALL") params.set("testament", state.testamentFilter);
   const query = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);

@@ -17,6 +17,7 @@ export function SearchOverlay() {
   const setOpen = useBibleStore((state) => state.setSearchOpen);
   const setQuery = useBibleStore((state) => state.setSearchQuery);
   const setMode = useBibleStore((state) => state.setSearchMode);
+  const selectBook = useBibleStore((state) => state.selectBook);
   if (!open) return null;
   const term = normalize(query.trim());
   const matches = (value: string) => !term || normalize(value).includes(term);
@@ -24,6 +25,8 @@ export function SearchOverlay() {
   const peopleResults = characters.filter((person) => matches(`${person.nameRu} ${person.descriptionRu}`)).slice(0, 6);
   const placeResults = locations.filter((place) => matches(`${place.ancientNameRu} ${place.modernNameRu ?? ""} ${place.modernCountry ?? ""}`)).slice(0, 6);
   const storyResults = storylines.filter((story) => matches(`${story.titleRu} ${story.descriptionRu}`)).slice(0, 6);
+  const books = Array.from(new Map(events.flatMap((event) => event.scriptureReferences.map((ref) => [ref.bookId, ref.bookRu] as const))).entries());
+  const bookResults = books.filter(([, title]) => matches(title)).slice(0, 6);
   const close = () => setOpen(false);
   const select = (kind: "event" | "person" | "place" | "story", id: string) => {
     const state = useBibleStore.getState();
@@ -44,6 +47,7 @@ export function SearchOverlay() {
           {(mode === "all" || mode === "people") && peopleResults.length > 0 && <ResultSection title="Люди"><div className="result-grid compact">{peopleResults.map((person) => <button key={person.id} onClick={() => select("person", person.id)}><span className="result-icon"><UserRound size={18} /></span><span><b>{person.nameRu}</b><small>{person.testament === "OT" ? "Ветхий Завет" : "Новый Завет"}</small></span></button>)}</div></ResultSection>}
           {(mode === "all" || mode === "places") && placeResults.length > 0 && <ResultSection title="Места"><div className="result-grid compact">{placeResults.map((place) => <button key={place.id} onClick={() => select("place", place.id)}><span className="result-icon"><MapPin size={18} /></span><span><b>{place.ancientNameRu}</b><small>{place.modernCountry ?? "Локализация не установлена"}</small></span></button>)}</div></ResultSection>}
           {(mode === "all" || mode === "stories") && storyResults.length > 0 && <ResultSection title="Сюжеты"><div className="result-grid compact">{storyResults.map((story) => <button key={story.id} onClick={() => select("story", story.id)}><span className="result-icon"><Route size={18} /></span><span><b>{story.titleRu}</b><small>{story.eventIds.length} событий</small></span></button>)}</div></ResultSection>}
+          {mode === "all" && bookResults.length > 0 && <ResultSection title="Книги Писания"><div className="result-grid compact">{bookResults.map(([id, title]) => <button key={id} onClick={() => { selectBook(id); track("search_used", { kind: "book" }); close(); }}><span className="result-icon"><BookOpen size={18} /></span><span><b>{title}</b><small>Показать географию книги</small></span></button>)}</div></ResultSection>}
           {!eventResults.length && !peopleResults.length && !placeResults.length && !storyResults.length && <div className="no-results"><BookOpen size={30} /><b>Ничего не найдено</b><span>Попробуйте название места, человека или книги Писания.</span></div>}
         </div>
       </div>

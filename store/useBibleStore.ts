@@ -14,7 +14,9 @@ interface BibleState {
   activeStorylineId?: string;
   activeCharacterId?: string;
   activeLocationId?: string;
+  activeBookId?: string;
   timelineZoom: number;
+  timelineFocused: boolean;
   historicalRegionsEnabled: boolean;
   searchOpen: boolean;
   studyOpen: boolean;
@@ -22,6 +24,9 @@ interface BibleState {
   searchQuery: string;
   searchMode: SearchMode;
   sheetTab: "scripture" | "history" | "geography" | "tradition";
+  bookmarkIds: string[];
+  storyPlaying: boolean;
+  storySpeed: 0.5 | 1 | 2;
   setTestament: (filter: TestamentFilter) => void;
   setTime: (year: number) => void;
   setTimeWindow: (window: TimeWindow) => void;
@@ -30,12 +35,17 @@ interface BibleState {
   selectStoryline: (id?: string) => void;
   selectCharacter: (id?: string) => void;
   selectLocation: (id?: string) => void;
+  selectBook: (id?: string) => void;
   setSearchOpen: (value: boolean) => void;
   setStudyOpen: (value: boolean) => void;
   setFiltersOpen: (value: boolean) => void;
   setSearchQuery: (value: string) => void;
   setSearchMode: (value: SearchMode) => void;
   setSheetTab: (value: BibleState["sheetTab"]) => void;
+  setBookmarks: (ids: string[]) => void;
+  toggleBookmark: (id: string) => void;
+  setStoryPlaying: (value: boolean) => void;
+  setStorySpeed: (value: BibleState["storySpeed"]) => void;
   toggleRegions: () => void;
 }
 
@@ -44,6 +54,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   activeTime: -900,
   timeWindow: { start: -2200, end: 100 },
   timelineZoom: 1,
+  timelineFocused: false,
   historicalRegionsEnabled: false,
   searchOpen: false,
   studyOpen: false,
@@ -51,19 +62,27 @@ export const useBibleStore = create<BibleState>((set) => ({
   searchQuery: "",
   searchMode: "all",
   sheetTab: "scripture",
+  bookmarkIds: [],
+  storyPlaying: false,
+  storySpeed: 1,
   setTestament: (testamentFilter) => set({ testamentFilter }),
-  setTime: (activeTime) => set({ activeTime }),
+  setTime: (activeTime) => set({ activeTime, timelineFocused: true }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setZoom: (timelineZoom) => set({ timelineZoom }),
   selectEvent: (activeEventId) => set({ activeEventId, sheetTab: "scripture" }),
-  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeEventId: undefined }),
-  selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeEventId: undefined }),
-  selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined }),
+  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
+  selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
+  selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
+  selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setStudyOpen: (studyOpen) => set({ studyOpen }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchMode: (searchMode) => set({ searchMode }),
   setSheetTab: (sheetTab) => set({ sheetTab }),
+  setBookmarks: (bookmarkIds) => set({ bookmarkIds }),
+  toggleBookmark: (id) => set((state) => ({ bookmarkIds: state.bookmarkIds.includes(id) ? state.bookmarkIds.filter((item) => item !== id) : [...state.bookmarkIds, id] })),
+  setStoryPlaying: (storyPlaying) => set({ storyPlaying }),
+  setStorySpeed: (storySpeed) => set({ storySpeed }),
   toggleRegions: () => set((state) => ({ historicalRegionsEnabled: !state.historicalRegionsEnabled })),
 }));
