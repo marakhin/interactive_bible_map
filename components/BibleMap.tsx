@@ -94,6 +94,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
       map.on("load", () => {
         window.clearTimeout(loadTimeout);
+        setMapFailed(false);
         map.addSource("biblical-route", { type: "geojson", data: route });
         map.addLayer({ id: "biblical-route-shadow", type: "line", source: "biblical-route", paint: { "line-color": "#fff8e8", "line-width": 7, "line-opacity": 0.8 } });
         map.addLayer({ id: "biblical-route", type: "line", source: "biblical-route", paint: { "line-color": ["coalesce", ["get", "color"], "#ba6437"], "line-width": 3, "line-opacity": 0.9, "line-dasharray": [1.5, 1] } });
@@ -119,9 +120,6 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
           map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
         }
         setMapReady(true);
-      });
-      map.on("error", (event) => {
-        if (!map.loaded() && event.error) setMapFailed(true);
       });
     } catch {
       setMapFailed(true);
