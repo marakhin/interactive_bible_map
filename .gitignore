@@ -27,8 +27,10 @@
 npm-debug.log*
 .dev-*.log
 .prod-*.log
+.local-*.log
 .dev-pid
 .prod-pid
+.local-pid
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
