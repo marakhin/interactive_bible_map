@@ -21,6 +21,9 @@ if (!appCode.includes("data-synodal-text") || !appCode.includes("Синодал�
   throw new Error("The inline Synodal Scripture text is missing from the production client");
 }
 if (!appCode.includes("bible-map-tooltip")) throw new Error("Automatic clickable place labels are missing");
+if (!appCode.includes("biblical-river-") || !appCode.includes("tigris") || !appCode.includes("euphrates") || !appCode.includes("Быт. 2:14")) {
+  throw new Error("The Tigris and Euphrates Scripture river layer is missing");
+}
 
 const clientFiles = await readdir(resolve("dist", "client"));
 if (clientFiles.includes("sw.js")) throw new Error("The obsolete service worker is still being published");

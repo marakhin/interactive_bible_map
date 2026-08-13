@@ -23,7 +23,14 @@ try {
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
   await page.locator('.leaflet-tile-loaded').first().waitFor({ state: "visible", timeout: 20_000 });
   await page.waitForTimeout(1800);
-  for (let zoom = 0; zoom < 4; zoom += 1) await page.locator('.leaflet-control-zoom-in').click();
+  await page.locator('.biblical-river-tigris').dispatchEvent('mouseover');
+  await page.locator('.biblical-river-tooltip').waitFor({ state: "visible", timeout: 10_000 });
+  const riverExplanation = await page.locator('.biblical-river-tooltip').textContent();
+  if (!riverExplanation?.includes("Хиддекель") || !riverExplanation.includes("Быт. 2:14")) throw new Error("The Tigris explanation is missing");
+  for (let zoom = 0; zoom < 2; zoom += 1) {
+    await page.locator('.leaflet-control-zoom-in').click();
+    await page.waitForTimeout(400);
+  }
   await page.waitForTimeout(1000);
   const automaticLabels = await page.locator('.bible-map-tooltip').count();
   const visibleLabelIndex = await page.locator('.bible-map-tooltip').evaluateAll((labels) =>
@@ -43,6 +50,8 @@ try {
     tiles: document.querySelectorAll(".leaflet-tile-loaded").length,
     markers: document.querySelectorAll(".bible-marker-dot").length,
     routes: document.querySelectorAll(".biblical-route-line").length,
+    rivers: document.querySelectorAll(".biblical-river").length,
+    riverLabels: document.querySelectorAll(".biblical-river-name").length,
     automaticLabels: document.querySelectorAll(".bible-map-tooltip").length,
     sheetOpen: Boolean(document.querySelector(".event-sheet")),
     synodalText: document.querySelector("[data-synodal-text]")?.textContent?.trim().slice(0, 120),
@@ -55,11 +64,19 @@ try {
   if (result.tiles < 4) throw new Error(`Too few loaded OSM tiles: ${result.tiles}`);
   if (result.markers < 8) throw new Error(`Too few event markers: ${result.markers}`);
   if (result.routes < 1) throw new Error("The Abraham route is missing");
+  if (result.rivers !== 2 || result.riverLabels !== 2) throw new Error(`Biblical river layer is incomplete: ${result.rivers} lines, ${result.riverLabels} labels`);
   if (automaticLabels < 1 || result.automaticLabels < 1) throw new Error("Automatic place labels are missing after zooming in");
   if (!result.sheetOpen) throw new Error("Clicking a map point did not open the event sheet");
   if (!result.synodalText) throw new Error("The inline Synodal Scripture text is missing");
   if (result.basemapError) throw new Error("The basemap error is visible");
   if (!result.mapBox || result.mapBox.width < 500 || result.mapBox.height < 300) throw new Error("Map is not visibly sized");
+  await page.getByRole('button', { name: 'Фильтры' }).click();
+  const riverToggle = page.locator('.switch-row').filter({ hasText: 'Реки, названные в Писании' }).locator('input');
+  await riverToggle.uncheck();
+  if (await page.locator('.biblical-river').count()) throw new Error("The biblical rivers filter did not hide the layer");
+  await riverToggle.check();
+  await page.locator('.biblical-river-tigris').waitFor({ state: "attached", timeout: 10_000 });
+  await page.getByRole('button', { name: 'Показать на карте' }).click();
   await page.screenshot({ path: resolve(".map-browser-check.png"), fullPage: false });
   console.log(JSON.stringify({ ...result, browserErrors: errors }));
 } finally {

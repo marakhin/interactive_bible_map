@@ -18,6 +18,7 @@ interface BibleState {
   timelineZoom: number;
   timelineFocused: boolean;
   historicalRegionsEnabled: boolean;
+  biblicalRiversEnabled: boolean;
   searchOpen: boolean;
   studyOpen: boolean;
   filtersOpen: boolean;
@@ -47,6 +48,7 @@ interface BibleState {
   setStoryPlaying: (value: boolean) => void;
   setStorySpeed: (value: BibleState["storySpeed"]) => void;
   toggleRegions: () => void;
+  toggleRivers: () => void;
 }
 
 export const useBibleStore = create<BibleState>((set) => ({
@@ -56,6 +58,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   timelineZoom: 1,
   timelineFocused: false,
   historicalRegionsEnabled: false,
+  biblicalRiversEnabled: true,
   searchOpen: false,
   studyOpen: false,
   filtersOpen: false,
@@ -85,4 +88,5 @@ export const useBibleStore = create<BibleState>((set) => ({
   setStoryPlaying: (storyPlaying) => set({ storyPlaying }),
   setStorySpeed: (storySpeed) => set({ storySpeed }),
   toggleRegions: () => set((state) => ({ historicalRegionsEnabled: !state.historicalRegionsEnabled })),
+  toggleRivers: () => set((state) => ({ biblicalRiversEnabled: !state.biblicalRiversEnabled })),
 }));

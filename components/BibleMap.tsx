@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed } from "lucide-react";
 import type * as Leaflet from "leaflet";
 import { events } from "@/data/events";
+import biblicalRivers from "@/data/biblical-rivers.json";
 import { locationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
 import type { BibleEvent, BibleLocation } from "@/domain/types";
@@ -40,6 +41,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
   const markerLayerRef = useRef<Leaflet.LayerGroup | null>(null);
   const routeLayerRef = useRef<Leaflet.LayerGroup | null>(null);
   const regionLayerRef = useRef<Leaflet.LayerGroup | null>(null);
+  const riverLayerRef = useRef<Leaflet.LayerGroup | null>(null);
   const retryBasemapRef = useRef<() => void>(() => undefined);
   const [basemapStatus, setBasemapStatus] = useState<"loading" | "ready" | "error">("loading");
   const [mapInitialized, setMapInitialized] = useState(false);
@@ -47,6 +49,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
   const activeEventId = useBibleStore((state) => state.activeEventId);
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
   const historicalRegionsEnabled = useBibleStore((state) => state.historicalRegionsEnabled);
+  const biblicalRiversEnabled = useBibleStore((state) => state.biblicalRiversEnabled);
   const selectEvent = useBibleStore((state) => state.selectEvent);
 
   const markers = useMemo<LocatedMarker[]>(() => {
@@ -131,6 +134,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
       routeLayerRef.current = leaflet.layerGroup().addTo(map);
       regionLayerRef.current = leaflet.layerGroup().addTo(map);
+      riverLayerRef.current = leaflet.layerGroup().addTo(map);
       leaflet.control.zoom({ position: "topright" }).addTo(map);
       map.fitBounds(leaflet.latLngBounds(HOME_SOUTH_WEST, HOME_NORTH_EAST), { padding: [24, 24], animate: false });
       retryBasemapRef.current = () => installBasemap(map, leaflet);
@@ -155,6 +159,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       markerLayerRef.current = null;
       routeLayerRef.current = null;
       regionLayerRef.current = null;
+      riverLayerRef.current = null;
     };
   }, []);
 
@@ -232,6 +237,37 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
 
   useEffect(() => {
     const leaflet = leafletRef.current;
+    const layer = riverLayerRef.current;
+    if (!leaflet || !layer) return;
+    layer.clearLayers();
+    if (!biblicalRiversEnabled) return;
+
+    for (const feature of biblicalRivers.features) {
+      const points: Leaflet.LatLngTuple[] = feature.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]);
+      const river = leaflet.polyline(points, {
+        className: `biblical-river biblical-river-${feature.properties.id}`,
+        color: "#277fa0",
+        weight: 4,
+        opacity: 0.82,
+        lineCap: "round",
+        lineJoin: "round",
+      }).bindTooltip(
+        `<strong>${feature.properties.nameRu}</strong><span>${feature.properties.scripture}</span><small>${feature.properties.noteRu}</small>`,
+        { sticky: true, direction: "top", className: "biblical-river-tooltip" },
+      ).addTo(layer);
+      river.bringToBack();
+
+      const labelPoint = points[Math.floor(points.length * 0.55)];
+      if (!labelPoint) continue;
+      leaflet.tooltip({ permanent: true, direction: "center", className: "biblical-river-name", interactive: false })
+        .setLatLng(labelPoint)
+        .setContent(feature.properties.nameRu)
+        .addTo(layer);
+    }
+  }, [biblicalRiversEnabled, mapInitialized]);
+
+  useEffect(() => {
+    const leaflet = leafletRef.current;
     const layer = regionLayerRef.current;
     if (!leaflet || !layer) return;
     layer.clearLayers();
@@ -278,6 +314,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
         <span><i className="legend-dot ot" />Ветхий Завет</span>
         <span><i className="legend-dot nt" />Новый Завет</span>
         <span><i className="legend-line" />маршрут по Писанию</span>
+        <span><i className="legend-river" />Тигр и Евфрат</span>
       </div>
 
       <button
@@ -294,7 +331,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       </button>
 
       <div className="map-credit">
-        © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · ODbL
+        © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · реки: <a href="https://www.hydrosheds.org/products/hydrorivers" target="_blank" rel="noreferrer">HydroRIVERS</a>
       </div>
 
       {basemapStatus === "error" && (
