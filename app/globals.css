@@ -68,6 +68,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .study-list > button:hover { background: var(--surface-soft); }
 .study-list b { display: block; font-size: 14px; }
 .study-list small { display: block; margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
+.book-study-list { max-height: 330px; overflow-y: auto; padding-right: 3px; scrollbar-width: thin; }
+.book-study-list > button { grid-template-columns: 18px 1fr 20px; }
+.book-study-list svg.ot { color: var(--ot); }.book-study-list svg.nt { color: var(--nt); }
 .story-dot { width: 8px; height: 8px; border-radius: 50%; }
 .people-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .people-chips button { min-height: 38px; padding: 0 11px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 999px; font-size: 12px; cursor: pointer; }
@@ -88,6 +91,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .event-rail b, .event-rail small { display: block; }
 .event-rail b { font-size: 12px; }
 .event-rail small { margin-top: 2px; color: var(--text-secondary); font-size: 10px; }
+.book-selection-note { margin: 13px 3px 0; color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
 .reset-selection { width: 100%; height: 42px; border: 1px solid var(--border); background: transparent; border-radius: 9px; cursor: pointer; font-size: 12px; }
 .story-player { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 6px; background: var(--surface-soft); border-radius: 9px; }
 .story-player > button { min-height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 11px; color: #fff; background: var(--accent); border: 0; border-radius: 7px; cursor: pointer; font-size: 11px; }

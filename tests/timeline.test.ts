@@ -4,6 +4,7 @@ import { storylines } from "@/data/storylines";
 import { formatBiblicalYear, getVisibleEvents, nextBiblicalYear, sortEvents } from "@/domain/timeline";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { validateDataset } from "@/data/repository";
+import { bibleBookById, bibleBooks } from "@/data/books";
 
 describe("библейская хронология", () => {
   it("форматирует годы до и по Рождестве Христовом", () => {
@@ -37,5 +38,13 @@ describe("библейская хронология", () => {
   });
   it("каждое событие имеет ссылку на Писание", () => {
     expect(events.every((event) => event.scriptureReferences.length > 0)).toBe(true);
+  });
+  it("позволяет изучать книгу Исход по связанным событиям и местам", () => {
+    const exodus = bibleBookById.get("exodus")!;
+    const exodusEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "exodus"));
+    expect(bibleBooks.some((book) => book.id === "exodus" && book.titleRu === "Исход")).toBe(true);
+    expect(exodus.eventCount).toBe(exodusEvents.length);
+    expect(exodus.placeCount).toBeGreaterThan(3);
+    expect(exodusEvents.every((event) => event.locations.length > 0)).toBe(true);
   });
 });
