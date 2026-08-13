@@ -22,6 +22,7 @@ try {
   await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
   await page.locator('.leaflet-tile-loaded').first().waitFor({ state: "visible", timeout: 20_000 });
+  await page.waitForTimeout(1800);
   for (let zoom = 0; zoom < 4; zoom += 1) await page.locator('.leaflet-control-zoom-in').click();
   await page.waitForTimeout(1000);
   const automaticLabels = await page.locator('.bible-map-tooltip').count();
