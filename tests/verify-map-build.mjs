@@ -17,6 +17,10 @@ if (!appCode.includes("tile.openstreetmap.org") || appCode.includes("maplibre-gl
   throw new Error("The production map is not using the approved OpenStreetMap basemap");
 }
 if (!appCode.includes("data-map-ready")) throw new Error("The map readiness marker is missing");
+if (!appCode.includes("data-synodal-text") || !appCode.includes("Синодальный перевод")) {
+  throw new Error("The inline Synodal Scripture text is missing from the production client");
+}
+if (!appCode.includes("bible-map-tooltip")) throw new Error("Automatic clickable place labels are missing");
 
 const clientFiles = await readdir(resolve("dist", "client"));
 if (clientFiles.includes("sw.js")) throw new Error("The obsolete service worker is still being published");

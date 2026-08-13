@@ -49,3 +49,6 @@ tsconfig.tsbuildinfo
 /.wrangler/
 /outputs/
 /work/
+/.pysword-tool/
+/.russyn-usfm-source/
+/.russyn1876-source/

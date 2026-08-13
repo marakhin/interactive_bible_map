@@ -5,14 +5,10 @@ import { characterById } from "@/data/characters";
 import { eventById, events } from "@/data/events";
 import { locationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
+import { getSynodalPassages, synodalMetadata } from "@/data/synodal";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { track } from "@/lib/analytics";
 import { useBibleStore } from "@/store/useBibleStore";
-
-function scriptureHref(bookId: string, chapter: number, verse?: number) {
-  const codes: Record<string, string> = { genesis: "Gen", exodus: "Ex", numbers: "Num", deuteronomy: "Deut", joshua: "Nav", judges: "Judg", "1-samuel": "1Sam", "2-samuel": "2Sam", "1-kings": "1King", "2-kings": "2King", isaiah: "Is", jeremiah: "Jer", daniel: "Dan", ezra: "Ezr", nehemiah: "Neh", esther: "Esth", jonah: "Jona", matthew: "Mt", mark: "Mk", luke: "Lk", john: "Jn", acts: "Act" };
-  return `https://azbyka.ru/biblia/?${codes[bookId] ?? bookId}.${chapter}${verse ? `:${verse}` : ""}=&r`;
-}
 
 export function EventSheet() {
   const activeEventId = useBibleStore((state) => state.activeEventId);
@@ -31,6 +27,7 @@ export function EventSheet() {
   const index = sequence.indexOf(event.id);
   const previousId = index > 0 ? sequence[index - 1] : undefined;
   const nextId = index >= 0 && index < sequence.length - 1 ? sequence[index + 1] : undefined;
+  const scripturePassages = event.scriptureReferences.flatMap((reference) => getSynodalPassages(reference));
 
   return (
     <aside className="event-sheet" aria-label={`Событие: ${event.titleRu}`}>
@@ -47,7 +44,18 @@ export function EventSheet() {
         <button role="tab" aria-selected={sheetTab === "tradition"} onClick={() => setSheetTab("tradition")}>Предание</button>
       </div>
       <div className="sheet-content">
-        {sheetTab === "scripture" && <><div className="section-kicker"><BookOpen size={16} />Что сообщает Писание</div><p className="lead-copy">{event.scriptureSummary}</p><div className="scripture-links">{event.scriptureReferences.map((reference) => <a key={reference.displayRu} href={scriptureHref(reference.bookId, reference.chapterStart, reference.verseStart)} target="_blank" rel="noreferrer" onClick={() => track("scripture_opened")}><BookOpen size={17} /><span><small>Читать в Синодальном переводе</small><b>{reference.displayRu}</b></span><ArrowRight size={17} /></a>)}</div></>}
+        {sheetTab === "scripture" && <>
+          <div className="section-kicker"><BookOpen size={16} />Что сообщает Писание</div>
+          <p className="lead-copy">{event.scriptureSummary}</p>
+          <div className="synodal-heading"><div><span>Синодальный перевод</span><b>{event.scriptureReferences.map((reference) => reference.displayRu).join("; ")}</b></div><small>Текст внутри карты</small></div>
+          <div className="synodal-text" data-synodal-text="true">
+            {scripturePassages.map((passage, passageIndex) => <section key={`${passage.displayRu}-${passageIndex}`}>
+              {scripturePassages.length > 1 && <h3>{passage.displayRu}</h3>}
+              {passage.verses.map((verse) => <p key={`${passageIndex}-${verse.chapter}-${verse.verse}`}><sup>{verse.verse}</sup>{verse.text}</p>)}
+            </section>)}
+          </div>
+          <div className="synodal-source"><span>Синодальный перевод {synodalMetadata.edition} года · {synodalMetadata.books} книг · текст загружен в приложение</span><a href={synodalMetadata.source} target="_blank" rel="noreferrer">Источник текста</a></div>
+        </>}
         {sheetTab === "history" && <><div className="section-kicker"><Info size={16} />Редакционная справка</div><p>{event.historicalNote ?? "Отдельная историческая реконструкция для этого события не добавлена. Карточка следует тексту указанного места Писания."}</p><div className="honesty-note"><b>{chronologyLabels[event.chronology.certainty]}</b><span>{event.chronology.noteRu}</span></div></>}
         {sheetTab === "geography" && <><div className="section-kicker"><MapPin size={16} />Связанные места</div><div className="place-list">{event.locations.map((item) => { const place = locationById.get(item.locationId); return place ? <button key={`${event.id}-${item.locationId}-${item.order}`} onClick={() => { selectEvent(undefined); selectLocation(place.id); }}><span><b>{place.ancientNameRu}</b><small>{place.modernCountry}</small></span><em>{localizationLabels[place.localizationType]}</em></button> : null; })}</div></>}
         {sheetTab === "tradition" && <><div className="section-kicker"><BookOpen size={16} />Церковное Предание</div>{event.traditionNote ? <p>{event.traditionNote}</p> : <div className="empty-tab"><p>Для этого события отдельная заметка Предания пока не добавлена.</p><span>Этот раздел намеренно отделён от пересказа Писания.</span></div>}</>}

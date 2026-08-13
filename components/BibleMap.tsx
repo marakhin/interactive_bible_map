@@ -160,9 +160,19 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
 
   useEffect(() => {
     const leaflet = leafletRef.current;
+    const map = mapRef.current;
     const layer = markerLayerRef.current;
-    if (!leaflet || !layer) return;
+    if (!leaflet || !map || !layer) return;
     layer.clearLayers();
+
+    const markerTooltips: Array<{ marker: Leaflet.CircleMarker; active: boolean }> = [];
+    const showAutomaticLabels = () => {
+      const labelsVisible = map.getZoom() >= 7;
+      for (const item of markerTooltips) {
+        if (labelsVisible || item.active) item.marker.openTooltip();
+        else item.marker.closeTooltip();
+      }
+    };
 
     for (const group of markers) {
       const point = coordinates(group.location);
@@ -181,14 +191,23 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       });
       marker.bindTooltip(
         `<strong>${group.location.ancientNameRu}</strong><span>${group.events.length} ${group.events.length === 1 ? "событие" : "событий"}</span>`,
-        { direction: "top", offset: [0, -8], className: "bible-map-tooltip" },
+        { direction: "top", offset: [0, -8], className: "bible-map-tooltip", permanent: false, interactive: true },
       );
       marker.on("click", () => {
         const selected = group.events.find((event) => event.id === activeEventId) ?? group.events[0];
         if (selected) selectEvent(selected.id);
       });
+      marker.on("tooltipopen", (event) => {
+        const element = event.tooltip.getElement();
+        if (element) element.onclick = () => marker.fire("click");
+      });
       marker.addTo(layer);
+      markerTooltips.push({ marker, active });
     }
+
+    map.on("zoomend", showAutomaticLabels);
+    showAutomaticLabels();
+    return () => { map.off("zoomend", showAutomaticLabels); };
   }, [activeEventId, mapInitialized, markers, selectEvent]);
 
   useEffect(() => {
