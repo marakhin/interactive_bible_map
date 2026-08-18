@@ -23,6 +23,14 @@ try {
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
   await page.locator('.leaflet-tile-loaded').first().waitFor({ state: "visible", timeout: 20_000 });
   await page.waitForTimeout(1800);
+  const contextCards = await page.locator('.context-card').count();
+  if (contextCards !== 0) throw new Error(`The removed map context card is still rendered: ${contextCards}`);
+  const storyRailIds = await page.locator('.event-rail > button').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('data-event-id')).sort());
+  await page.waitForFunction((count) => document.querySelectorAll('.timeline-event').length === count, storyRailIds.length);
+  const storyTimelineIds = await page.locator('.timeline-event').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('data-event-id')).sort());
+  if (JSON.stringify(storyRailIds) !== JSON.stringify(storyTimelineIds)) {
+    throw new Error(`Story timeline is out of sync: rail=${storyRailIds.join(',')}; timeline=${storyTimelineIds.join(',')}`);
+  }
   await page.locator('.biblical-river-tigris').dispatchEvent('mouseover');
   await page.locator('.biblical-river-tooltip').waitFor({ state: "visible", timeout: 10_000 });
   const riverExplanation = await page.locator('.biblical-river-tooltip').textContent();
@@ -84,7 +92,7 @@ try {
   await page.locator('.biblical-river-tigris').waitFor({ state: "attached", timeout: 10_000 });
   await page.getByRole('button', { name: 'Показать на карте' }).click();
   await page.screenshot({ path: resolve(".map-browser-check.png"), fullPage: false });
-  console.log(JSON.stringify({ ...result, browserErrors: errors }));
+  console.log(JSON.stringify({ ...result, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, contextCards, browserErrors: errors }));
 } finally {
   await browser.close();
 }

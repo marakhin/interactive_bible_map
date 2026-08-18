@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { events } from "@/data/events";
 import { storylines } from "@/data/storylines";
-import { formatBiblicalYear, getVisibleEvents, nextBiblicalYear, sortEvents } from "@/domain/timeline";
+import { formatBiblicalYear, getTimelineEvents, getTimelineFit, getVisibleEvents, nextBiblicalYear, sortEvents } from "@/domain/timeline";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { validateDataset } from "@/data/repository";
 import { bibleBookById, bibleBooks } from "@/data/books";
@@ -62,5 +62,15 @@ describe("библейская хронология", () => {
       "resurrection",
       "ascension",
     ]));
+    expect(getTimelineEvents(markEvents).map((event) => event.id)).toEqual(markEvents.map((event) => event.id));
+    expect(getTimelineFit(markEvents)).toMatchObject({ zoom: 5 });
+  });
+  it("не добавляет на шкалу события из другой выбранной коллекции", () => {
+    const abrahamEvents = events.filter((event) => event.storylineIds.includes("abraham"));
+    const timelineEvents = getTimelineEvents(abrahamEvents);
+    expect(timelineEvents).toHaveLength(abrahamEvents.length);
+    expect(timelineEvents.every((event) => event.storylineIds.includes("abraham"))).toBe(true);
+    const fit = getTimelineFit(timelineEvents)!;
+    expect(timelineEvents.every((event) => event.chronology.startYear! >= fit.timeWindow.start && event.chronology.startYear! <= fit.timeWindow.end)).toBe(true);
   });
 });

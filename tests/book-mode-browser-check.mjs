@@ -21,10 +21,18 @@ try {
   await page.addInitScript(() => localStorage.setItem("bible-map-onboarding", "seen"));
   await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
-  await page.getByRole("heading", { name: "От Марка" }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator(".active-selection-title b", { hasText: "От Марка" }).waitFor({ state: "visible", timeout: 10_000 });
 
   const markEvents = await page.locator(".event-rail > button").count();
   if (markEvents !== 14) throw new Error(`Expected 14 Mark events, found ${markEvents}`);
+  await page.waitForFunction(() => document.querySelectorAll(".timeline-event").length === 14);
+  const contextCards = await page.locator(".context-card").count();
+  if (contextCards !== 0) throw new Error(`The removed map context card is still rendered: ${contextCards}`);
+  const markRailIds = await page.locator(".event-rail > button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")).sort());
+  const markTimelineIds = await page.locator(".timeline-event").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")).sort());
+  if (JSON.stringify(markRailIds) !== JSON.stringify(markTimelineIds)) {
+    throw new Error(`Mark timeline is out of sync: rail=${markRailIds.join(",")}; timeline=${markTimelineIds.join(",")}`);
+  }
   await page.locator(".event-rail > button").filter({ hasText: "Воскресение Христово" }).click();
   await page.locator('[data-synodal-text="true"]').waitFor({ state: "visible", timeout: 10_000 });
   const references = await page.locator(".synodal-heading b").textContent();
@@ -34,7 +42,7 @@ try {
   }
 
   await page.getByRole("button", { name: "Показать все точки без фильтров" }).click();
-  await page.getByRole("heading", { name: "Все точки Писания" }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator(".all-points-study", { hasText: "Все точки Писания" }).waitFor({ state: "visible", timeout: 10_000 });
   await page.waitForTimeout(1000);
   const allMarkers = await page.locator(".bible-marker-dot").count();
   const routes = await page.locator(".biblical-route-line").count();
@@ -43,7 +51,7 @@ try {
   if (!page.url().includes("view=all")) throw new Error(`All-points mode is missing from URL: ${page.url()}`);
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, references, passageHeadings, allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, contextCards, references, passageHeadings, allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }

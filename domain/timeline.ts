@@ -30,6 +30,10 @@ export function getVisibleEvents(events: BibleEvent[], start: number, end: numbe
   return events.filter((event) => isEventActive(event, start, end));
 }
 
+export function getTimelineEvents(events: BibleEvent[]): BibleEvent[] {
+  return events.filter((event) => event.chronology.startYear !== undefined);
+}
+
 export const eras = [
   { id: "all", title: "Вся история", start: -2200, end: 100 },
   { id: "patriarchs", title: "Патриархи", start: -2100, end: -1600 },
@@ -52,4 +56,18 @@ export function getWindowForZoom(center: number, zoom: number): { start: number;
   const widths = [2300, 1100, 500, 160, 40];
   const width = widths[Math.max(0, Math.min(widths.length - 1, zoom - 1))];
   return { start: Math.round(center - width / 2), end: Math.round(center + width / 2) };
+}
+
+export function getTimelineFit(events: BibleEvent[]): { activeTime: number; timeWindow: { start: number; end: number }; zoom: number } | undefined {
+  const years = events
+    .map((event) => event.chronology.startYear)
+    .filter((year): year is number => year !== undefined);
+  if (!years.length) return undefined;
+
+  const earliest = Math.min(...years);
+  const latest = Math.max(...years);
+  const span = latest - earliest;
+  const zoom = span <= 32 ? 5 : span <= 128 ? 4 : span <= 400 ? 3 : span <= 880 ? 2 : 1;
+  const activeTime = Math.round((earliest + latest) / 2) || 1;
+  return { activeTime, timeWindow: getWindowForZoom(activeTime, zoom), zoom };
 }

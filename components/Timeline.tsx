@@ -1,18 +1,29 @@
 "use client";
 
+import { useEffect } from "react";
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import { eras, formatBiblicalYear, getTimelineTicks, getWindowForZoom } from "@/domain/timeline";
+import { eras, formatBiblicalYear, getTimelineEvents, getTimelineFit, getTimelineTicks, getWindowForZoom } from "@/domain/timeline";
 import { useBibleStore } from "@/store/useBibleStore";
 import type { BibleEvent } from "@/domain/types";
 import { track } from "@/lib/analytics";
 
-export function Timeline({ visibleEvents }: { visibleEvents: BibleEvent[] }) {
+export function Timeline({ visibleEvents, selectionKey }: { visibleEvents: BibleEvent[]; selectionKey?: string }) {
   const activeTime = useBibleStore((state) => state.activeTime);
   const timeWindow = useBibleStore((state) => state.timeWindow);
   const timelineZoom = useBibleStore((state) => state.timelineZoom);
   const setTime = useBibleStore((state) => state.setTime);
   const setTimeWindow = useBibleStore((state) => state.setTimeWindow);
   const setZoom = useBibleStore((state) => state.setZoom);
+  const fitTimeline = useBibleStore((state) => state.fitTimeline);
+  const selectionEventKey = selectionKey ? visibleEvents.map((event) => event.id).join("|") : "";
+
+  useEffect(() => {
+    if (!selectionKey) return;
+    const fit = getTimelineFit(visibleEvents);
+    if (fit) fitTimeline(fit.timeWindow, fit.zoom, fit.activeTime);
+    // selectionEventKey is the stable content signature; visibleEvents can be recreated by unrelated store updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionKey, selectionEventKey, fitTimeline]);
 
   const changeZoom = (next: number) => {
     const zoom = Math.max(1, Math.min(5, next));
@@ -32,10 +43,10 @@ export function Timeline({ visibleEvents }: { visibleEvents: BibleEvent[] }) {
   };
   const ticks = getTimelineTicks(timeWindow.start, timeWindow.end);
   const percent = Math.max(0, Math.min(100, ((activeTime - timeWindow.start) / (timeWindow.end - timeWindow.start)) * 100));
-  const markerEvents = visibleEvents.filter((event) => event.chronology.startYear !== undefined && event.importance >= (timelineZoom < 3 ? 5 : timelineZoom < 5 ? 4 : 1)).slice(0, 34);
+  const markerEvents = getTimelineEvents(visibleEvents);
 
   return (
-    <section className="timeline" aria-label="Временная шкала">
+    <section className="timeline" aria-label="Временная шкала" data-visible-events={visibleEvents.length} data-dated-events={markerEvents.length}>
       <div className="timeline-topline">
         <div><span className="eyebrow">Временная шкала</span><strong>{timelineZoom === 1 ? "Вся библейская история" : `${formatBiblicalYear(timeWindow.start)} — ${formatBiblicalYear(timeWindow.end)}`}</strong></div>
         <div className="timeline-actions"><button aria-label="Предыдущий временной отрезок" onClick={() => shift(-1)}><ChevronLeft size={19} /></button><button aria-label="Уменьшить масштаб времени" disabled={timelineZoom === 1} onClick={() => changeZoom(timelineZoom - 1)}><Minus size={17} /></button><span>{timelineZoom}×</span><button aria-label="Увеличить масштаб времени" disabled={timelineZoom === 5} onClick={() => changeZoom(timelineZoom + 1)}><Plus size={17} /></button><button aria-label="Следующий временной отрезок" onClick={() => shift(1)}><ChevronRight size={19} /></button></div>
@@ -49,7 +60,7 @@ export function Timeline({ visibleEvents }: { visibleEvents: BibleEvent[] }) {
             const year = event.chronology.startYear!;
             const left = ((year - timeWindow.start) / (timeWindow.end - timeWindow.start)) * 100;
             if (left < 0 || left > 100) return null;
-            return <button key={event.id} className={`timeline-event ${event.testament.toLowerCase()}`} style={{ left: `${left}%` }} title={event.titleRu} aria-label={event.titleRu} onClick={() => useBibleStore.getState().selectEvent(event.id)} />;
+            return <button key={event.id} data-event-id={event.id} className={`timeline-event ${event.testament.toLowerCase()}`} style={{ left: `${left}%` }} title={event.titleRu} aria-label={event.titleRu} onClick={() => useBibleStore.getState().selectEvent(event.id)} />;
           })}
           <input aria-label="Положение на временной шкале" type="range" min={timeWindow.start} max={timeWindow.end} value={activeTime} onChange={(event) => { const value = Number(event.target.value); setTime(value === 0 ? 1 : value); track("timeline_changed", { year: value }); }} />
         </div>

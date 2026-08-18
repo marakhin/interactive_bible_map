@@ -34,6 +34,7 @@ interface BibleState {
   setTime: (year: number) => void;
   setTimeWindow: (window: TimeWindow) => void;
   setZoom: (zoom: number) => void;
+  fitTimeline: (window: TimeWindow, zoom: number, activeTime: number) => void;
   selectEvent: (id?: string) => void;
   selectStoryline: (id?: string) => void;
   selectCharacter: (id?: string) => void;
@@ -78,6 +79,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   setTime: (activeTime) => set({ activeTime, timelineFocused: true, allPointsEnabled: false }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setZoom: (timelineZoom) => set({ timelineZoom }),
+  fitTimeline: (timeWindow, timelineZoom, activeTime) => set({ timeWindow, timelineZoom, activeTime, timelineFocused: false }),
   selectEvent: (activeEventId) => set({ activeEventId, sheetTab: "scripture" }),
   selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
