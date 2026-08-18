@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { BookMarked, Bookmark, ChevronRight, CircleUserRound, History, MapPinned, Pause, Play, Route, Sparkles, X } from "lucide-react";
 import { bibleBookById, bibleBooks } from "@/data/books";
 import { characters } from "@/data/characters";
@@ -15,6 +16,7 @@ export function StudyPanel() {
   const activeCharacterId = useBibleStore((state) => state.activeCharacterId);
   const activeLocationId = useBibleStore((state) => state.activeLocationId);
   const activeBookId = useBibleStore((state) => state.activeBookId);
+  const activeEventId = useBibleStore((state) => state.activeEventId);
   const allPointsEnabled = useBibleStore((state) => state.allPointsEnabled);
   const setOpen = useBibleStore((state) => state.setStudyOpen);
   const selectStoryline = useBibleStore((state) => state.selectStoryline);
@@ -27,8 +29,9 @@ export function StudyPanel() {
   const storySpeed = useBibleStore((state) => state.storySpeed);
   const setStoryPlaying = useBibleStore((state) => state.setStoryPlaying);
   const setStorySpeed = useBibleStore((state) => state.setStorySpeed);
+  const [lastEventId, setLastEventId] = useState<string | null>(null);
+  useEffect(() => { setLastEventId(localStorage.getItem("bible-map-last-event")); }, [activeEventId]);
   const bookmarkedEvents = events.filter((event) => bookmarkIds.includes(event.id));
-  const lastEventId = typeof window !== "undefined" ? localStorage.getItem("bible-map-last-event") : null;
   const lastEvent = lastEventId ? events.find((event) => event.id === lastEventId) : undefined;
   const selectionEvents = activeStorylineId
     ? events.filter((event) => event.storylineIds.includes(activeStorylineId))

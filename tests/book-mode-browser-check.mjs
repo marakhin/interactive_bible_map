@@ -38,6 +38,19 @@ try {
   if (JSON.stringify(markRailIds) !== JSON.stringify(markMapIds)) {
     throw new Error(`Mark map is out of sync: rail=${markRailIds.join(",")}; map=${markMapIds.join(",")}`);
   }
+  await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
+  const bookRouteStyle = await page.locator('.biblical-route-line').evaluate((line) => ({
+    strokeWidth: Number(line.getAttribute('stroke-width')),
+    dashArray: line.getAttribute('stroke-dasharray'),
+    box: line.getBoundingClientRect().toJSON(),
+  }));
+  if (bookRouteStyle.strokeWidth > 3 || bookRouteStyle.strokeWidth < 2) throw new Error(`The book route is not visually refined: ${bookRouteStyle.strokeWidth}px`);
+  if (!bookRouteStyle.dashArray || bookRouteStyle.box.width < 20 || bookRouteStyle.box.height < 20) throw new Error("The book route is not visibly drawn across its points");
+  if (await page.locator('.biblical-route-halo').count() !== 1) throw new Error("The route contrast halo is missing");
+  await page.getByRole('button', { name: 'Скрыть линии маршрута' }).click();
+  if (await page.locator('.biblical-route-line').count()) throw new Error("The book route remained visible after switching it off");
+  await page.getByRole('button', { name: 'Показать линии маршрута' }).click();
+  await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
 
   const locationChecks = [
     ["Крещение Господне", "Иордан", "jordan"],
@@ -62,6 +75,17 @@ try {
     throw new Error(`Parallel Gospel passages are incomplete: ${references}`);
   }
 
+  const matthewUrl = new URL(page.url());
+  matthewUrl.search = "?book=matthew";
+  await page.goto(matthewUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
+  await page.locator(".active-selection-title b", { hasText: "От Матфея" }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
+  const matthewRouteBox = await page.locator('.biblical-route-line').evaluate((line) => line.getBoundingClientRect().toJSON());
+  if (matthewRouteBox.width < 20 || matthewRouteBox.height < 20) throw new Error("The Matthew route is not visibly drawn");
+  if ((await page.locator('.map-route-toggle').textContent())?.trim() !== "Линии: вкл") throw new Error("The Matthew route legend does not match the visible line");
+  await page.screenshot({ path: resolve(".book-route-check.png"), fullPage: false });
+
   await page.getByRole("button", { name: "Показать все точки без фильтров" }).click();
   await page.locator(".all-points-study", { hasText: "Все точки Писания" }).waitFor({ state: "visible", timeout: 10_000 });
   await page.waitForTimeout(1000);
@@ -69,10 +93,11 @@ try {
   const routes = await page.locator(".biblical-route-line").count();
   if (allMarkers < 30) throw new Error(`All-points mode shows too few mapped places: ${allMarkers}`);
   if (routes !== 0) throw new Error("All-points mode unexpectedly shows a storyline route");
+  if (!(await page.getByRole('button', { name: 'Для текущего режима маршрут недоступен' }).isDisabled())) throw new Error("The route legend incorrectly reports an active route in all-points mode");
   if (!page.url().includes("view=all")) throw new Error(`All-points mode is missing from URL: ${page.url()}`);
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, contextCards, references, passageHeadings, galileeReferences, allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }

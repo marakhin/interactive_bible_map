@@ -8,6 +8,7 @@ import biblicalRivers from "@/data/biblical-rivers.json";
 import { locationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
 import { getPrimaryEventLocation } from "@/domain/event-locations";
+import { getSequentialRoutePoints } from "@/domain/map-route";
 import type { BibleEvent, BibleLocation } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
 
@@ -45,6 +46,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
 
   const activeEventId = useBibleStore((state) => state.activeEventId);
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
+  const activeCharacterId = useBibleStore((state) => state.activeCharacterId);
+  const activeBookId = useBibleStore((state) => state.activeBookId);
   const historicalRegionsEnabled = useBibleStore((state) => state.historicalRegionsEnabled);
   const biblicalRiversEnabled = useBibleStore((state) => state.biblicalRiversEnabled);
   const routesEnabled = useBibleStore((state) => state.routesEnabled);
@@ -65,23 +68,23 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
 
   const route = useMemo(() => {
     const storyline = activeStorylineId ? storylineById.get(activeStorylineId) : undefined;
-    if (!storyline) return undefined;
-    const points: Leaflet.LatLngTuple[] = [];
-    let previous = "";
-    for (const eventId of storyline.eventIds) {
-      const event = events.find((item) => item.id === eventId);
-      if (!event) continue;
-      for (const eventPlace of [...event.locations].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
-        const point = coordinates(locationById.get(eventPlace.locationId));
-        if (!point) continue;
-        const key = `${point[0].toFixed(4)}:${point[1].toFixed(4)}`;
-        if (key === previous) continue;
-        points.push(point);
-        previous = key;
-      }
-    }
-    return points.length > 1 ? { points, color: storyline.color } : undefined;
-  }, [activeStorylineId]);
+    if (!storyline && !activeBookId && !activeCharacterId) return undefined;
+
+    const visibleById = new Map(visibleEvents.map((event) => [event.id, event]));
+    const routeEvents = storyline
+      ? storyline.eventIds.map((eventId) => visibleById.get(eventId)).filter((event): event is BibleEvent => Boolean(event))
+      : visibleEvents;
+    const points = getSequentialRoutePoints(routeEvents, locationById);
+    if (points.length < 2) return undefined;
+
+    const kind = storyline ? "story" : activeBookId ? "book" : "person";
+    const color = storyline?.color ?? (routeEvents.some((event) => event.testament === "NT") ? "#277986" : "#a95b38");
+    return {
+      kind,
+      color,
+      points: points.map((point) => [point.latitude, point.longitude] as Leaflet.LatLngTuple),
+    };
+  }, [activeBookId, activeCharacterId, activeStorylineId, visibleEvents]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -129,6 +132,9 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         maxBoundsViscosity: 0.75,
         worldCopyJump: false,
       });
+      const routePane = map.createPane("biblicalRoutePane");
+      routePane.style.zIndex = "390";
+      routePane.style.pointerEvents = "none";
       mapRef.current = map;
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
       routeLayerRef.current = leaflet.layerGroup().addTo(map);
@@ -232,14 +238,29 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     if (!route || !routesEnabled) return;
 
     leaflet.polyline(route.points, {
-      className: "biblical-route-line",
-      color: route.color,
-      weight: 4,
-      opacity: 0.92,
-      dashArray: "9 7",
+      pane: "biblicalRoutePane",
+      className: "biblical-route-halo",
+      color: "#fffaf0",
+      weight: 6,
+      opacity: 0.82,
       lineCap: "round",
       lineJoin: "round",
+      interactive: false,
+      smoothFactor: 1.4,
     }).addTo(layer);
+    const routeLine = leaflet.polyline(route.points, {
+      pane: "biblicalRoutePane",
+      className: "biblical-route-line",
+      color: route.color,
+      weight: 2.75,
+      opacity: 0.88,
+      dashArray: "7 7",
+      lineCap: "round",
+      lineJoin: "round",
+      interactive: false,
+      smoothFactor: 1.4,
+    }).addTo(layer);
+    routeLine.getElement()?.setAttribute("data-route-kind", route.kind);
     map.fitBounds(leaflet.latLngBounds(route.points), { padding: [80, 80], maxZoom: 6, animate: true });
   }, [mapInitialized, route, routesEnabled]);
 
@@ -315,13 +336,25 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       aria-label="Интерактивная карта библейской истории"
       data-map-engine="leaflet-openstreetmap"
       data-basemap-status={basemapStatus}
+      data-route-status={!route ? "unavailable" : routesEnabled ? "visible" : "hidden"}
+      data-route-kind={route?.kind}
     >
       <div ref={containerRef} className="real-map" aria-label="Карта OpenStreetMap с местами библейских событий" />
 
       <div className="map-legend" aria-label="Условные обозначения">
         <span><i className="legend-dot ot" />Ветхий Завет</span>
         <span><i className="legend-dot nt" />Новый Завет</span>
-        <button className="map-route-toggle" type="button" aria-pressed={routesEnabled} aria-label={routesEnabled ? "Скрыть линии маршрута" : "Показать линии маршрута"} onClick={toggleRoutes}><i className={`legend-line${routesEnabled ? "" : " off"}`} />Линии: {routesEnabled ? "вкл" : "выкл"}</button>
+        <button
+          className="map-route-toggle"
+          type="button"
+          disabled={!route}
+          aria-pressed={Boolean(route && routesEnabled)}
+          aria-label={!route ? "Для текущего режима маршрут недоступен" : routesEnabled ? "Скрыть линии маршрута" : "Показать линии маршрута"}
+          onClick={toggleRoutes}
+        >
+          <i className={`legend-line${!route ? " unavailable" : routesEnabled ? "" : " off"}`} />
+          {!route ? "Линий нет" : `Линии: ${routesEnabled ? "вкл" : "выкл"}`}
+        </button>
         <span><i className="legend-river" />Тигр и Евфрат</span>
       </div>
 
