@@ -13,6 +13,8 @@ import type { BibleEvent, BibleLocation } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
 
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const MAX_MAP_ZOOM = 18;
+const AUTOMATIC_LABEL_MIN_ZOOM = 9;
 const HOME_SOUTH_WEST: Leaflet.LatLngTuple = [24, 10];
 const HOME_NORTH_EAST: Leaflet.LatLngTuple = [43.5, 50];
 
@@ -43,6 +45,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const retryBasemapRef = useRef<() => void>(() => undefined);
   const [basemapStatus, setBasemapStatus] = useState<"loading" | "ready" | "error">("loading");
   const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapZoom, setMapZoom] = useState(3);
 
   const activeEventId = useBibleStore((state) => state.activeEventId);
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
@@ -127,7 +130,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         attributionControl: false,
         zoomControl: false,
         minZoom: 3,
-        maxZoom: 12,
+        maxZoom: MAX_MAP_ZOOM,
         maxBounds: leaflet.latLngBounds([12, -18], [55, 72]),
         maxBoundsViscosity: 0.75,
         worldCopyJump: false,
@@ -136,12 +139,14 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       routePane.style.zIndex = "390";
       routePane.style.pointerEvents = "none";
       mapRef.current = map;
+      map.on("zoomend", () => setMapZoom(map.getZoom()));
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
       routeLayerRef.current = leaflet.layerGroup().addTo(map);
       regionLayerRef.current = leaflet.layerGroup().addTo(map);
       riverLayerRef.current = leaflet.layerGroup().addTo(map);
       leaflet.control.zoom({ position: "topright" }).addTo(map);
       map.fitBounds(leaflet.latLngBounds(HOME_SOUTH_WEST, HOME_NORTH_EAST), { padding: [24, 24], animate: false });
+      setMapZoom(map.getZoom());
       retryBasemapRef.current = () => installBasemap(map, leaflet);
       installBasemap(map, leaflet);
       setMapInitialized(true);
@@ -177,7 +182,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
 
     const markerTooltips: Array<{ marker: Leaflet.CircleMarker; active: boolean }> = [];
     const showAutomaticLabels = () => {
-      const labelsVisible = map.getZoom() >= 7;
+      const labelsVisible = map.getZoom() >= AUTOMATIC_LABEL_MIN_ZOOM;
       for (const item of markerTooltips) {
         if (labelsVisible || item.active) item.marker.openTooltip();
         else item.marker.closeTooltip();
@@ -336,6 +341,9 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       aria-label="Интерактивная карта библейской истории"
       data-map-engine="leaflet-openstreetmap"
       data-basemap-status={basemapStatus}
+      data-map-zoom={mapZoom}
+      data-map-max-zoom={MAX_MAP_ZOOM}
+      data-label-min-zoom={AUTOMATIC_LABEL_MIN_ZOOM}
       data-route-status={!route ? "unavailable" : routesEnabled ? "visible" : "hidden"}
       data-route-kind={route?.kind}
     >

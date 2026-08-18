@@ -39,12 +39,33 @@ try {
   await page.locator('.biblical-river-tooltip').waitFor({ state: "visible", timeout: 10_000 });
   const riverExplanation = await page.locator('.biblical-river-tooltip').textContent();
   if (!riverExplanation?.includes("Хиддекель") || !riverExplanation.includes("Быт. 2:14")) throw new Error("The Tigris explanation is missing");
-  for (let zoom = 0; zoom < 2; zoom += 1) {
-    await page.locator('.leaflet-control-zoom-in').click();
-    await page.waitForTimeout(400);
-  }
-  await page.waitForTimeout(1000);
+  const mapStage = page.locator('.map-stage');
+  const maxZoom = Number(await mapStage.getAttribute('data-map-max-zoom'));
+  const labelMinZoom = Number(await mapStage.getAttribute('data-label-min-zoom'));
+  if (maxZoom < 18) throw new Error(`The maximum map zoom is still too low: ${maxZoom}`);
+  if (labelMinZoom < 9) throw new Error(`Automatic labels still appear too early: zoom ${labelMinZoom}`);
+  const zoomTo = async (target) => {
+    while (Number(await mapStage.getAttribute('data-map-zoom')) < target) {
+      await page.locator('.leaflet-control-zoom-in').click();
+      await page.waitForTimeout(320);
+    }
+  };
+  await zoomTo(labelMinZoom - 1);
+  await page.waitForTimeout(500);
+  if (await page.locator('.bible-map-tooltip').count()) throw new Error(`Automatic labels are visible before zoom ${labelMinZoom}`);
+  await page.locator('.event-rail > button').first().click();
+  await page.locator('.event-sheet').waitFor({ state: "visible", timeout: 10_000 });
+  await page.waitForTimeout(900);
+  await page.locator('.event-sheet .close-button[aria-label="Закрыть"]').click();
+  await page.locator('.event-sheet').waitFor({ state: "detached", timeout: 10_000 });
+  await zoomTo(labelMinZoom);
+  await page.waitForTimeout(500);
   const automaticLabels = await page.locator('.bible-map-tooltip').count();
+  if (automaticLabels < 1) throw new Error(`Automatic place labels are missing at zoom ${labelMinZoom}`);
+  await zoomTo(maxZoom);
+  if (Number(await mapStage.getAttribute('data-map-zoom')) !== maxZoom) throw new Error(`The map did not reach zoom ${maxZoom}`);
+  if (!(await page.locator('.leaflet-control-zoom-in').evaluate((button) => button.classList.contains('leaflet-disabled')))) throw new Error("The zoom control did not reach its configured maximum");
+  await page.screenshot({ path: resolve(".max-zoom-check.png"), fullPage: false });
   const visibleLabelIndex = await page.locator('.bible-map-tooltip').evaluateAll((labels) =>
     labels.findIndex((label) => {
       const rect = label.getBoundingClientRect();
@@ -65,6 +86,9 @@ try {
     rivers: document.querySelectorAll(".biblical-river").length,
     riverLabels: document.querySelectorAll(".biblical-river-name").length,
     automaticLabels: document.querySelectorAll(".bible-map-tooltip").length,
+    zoom: Number(document.querySelector(".map-stage")?.getAttribute("data-map-zoom")),
+    maxZoom: Number(document.querySelector(".map-stage")?.getAttribute("data-map-max-zoom")),
+    labelMinZoom: Number(document.querySelector(".map-stage")?.getAttribute("data-label-min-zoom")),
     sheetOpen: Boolean(document.querySelector(".event-sheet")),
     synodalText: document.querySelector("[data-synodal-text]")?.textContent?.trim().slice(0, 120),
     basemapError: document.body.textContent?.includes("Подложка временно недоступна") ?? false,
