@@ -7,6 +7,7 @@ import { events } from "@/data/events";
 import biblicalRivers from "@/data/biblical-rivers.json";
 import { locationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
+import { getPrimaryEventLocation } from "@/domain/event-locations";
 import type { BibleEvent, BibleLocation } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
 
@@ -29,11 +30,6 @@ function coordinates(location: BibleLocation | undefined): Leaflet.LatLngTuple |
   return [location.latitude, location.longitude];
 }
 
-function eventLocation(event: BibleEvent): BibleLocation | undefined {
-  const preferred = [...event.locations].sort((a, b) => (b.order ?? 0) - (a.order ?? 0))[0];
-  return preferred ? locationById.get(preferred.locationId) : undefined;
-}
-
 export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const leafletRef = useRef<typeof Leaflet | null>(null);
@@ -52,12 +48,13 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const historicalRegionsEnabled = useBibleStore((state) => state.historicalRegionsEnabled);
   const biblicalRiversEnabled = useBibleStore((state) => state.biblicalRiversEnabled);
   const routesEnabled = useBibleStore((state) => state.routesEnabled);
+  const toggleRoutes = useBibleStore((state) => state.toggleRoutes);
   const selectEvent = useBibleStore((state) => state.selectEvent);
 
   const markers = useMemo<LocatedMarker[]>(() => {
     const grouped = new Map<string, LocatedMarker>();
     for (const event of visibleEvents) {
-      const location = eventLocation(event);
+      const location = getPrimaryEventLocation(event, locationById);
       if (!coordinates(location) || !location) continue;
       const group = grouped.get(location.id) ?? { location, events: [] };
       group.events.push(event);
@@ -209,6 +206,11 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         if (element) element.onclick = () => marker.fire("click");
       });
       marker.addTo(layer);
+      const markerElement = marker.getElement();
+      markerElement?.setAttribute("data-location-id", group.location.id);
+      markerElement?.setAttribute("data-event-ids", group.events.map((event) => event.id).join(" "));
+      markerElement?.setAttribute("data-latitude", String(group.location.latitude));
+      markerElement?.setAttribute("data-longitude", String(group.location.longitude));
       markerTooltips.push({ marker, active });
     }
 
@@ -302,7 +304,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   useEffect(() => {
     const map = mapRef.current;
     const active = activeEventId ? events.find((event) => event.id === activeEventId) : undefined;
-    const point = active ? coordinates(eventLocation(active)) : undefined;
+    const point = active ? coordinates(getPrimaryEventLocation(active, locationById)) : undefined;
     if (!map || !point) return;
     map.flyTo(point, Math.max(7, map.getZoom()), { animate: true, duration: 0.65 });
   }, [activeEventId, mapInitialized]);
@@ -319,7 +321,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       <div className="map-legend" aria-label="Условные обозначения">
         <span><i className="legend-dot ot" />Ветхий Завет</span>
         <span><i className="legend-dot nt" />Новый Завет</span>
-        {routesEnabled && <span><i className="legend-line" />маршрут по Писанию</span>}
+        <button className="map-route-toggle" type="button" aria-pressed={routesEnabled} aria-label={routesEnabled ? "Скрыть линии маршрута" : "Показать линии маршрута"} onClick={toggleRoutes}><i className={`legend-line${routesEnabled ? "" : " off"}`} />Линии: {routesEnabled ? "вкл" : "выкл"}</button>
         <span><i className="legend-river" />Тигр и Евфрат</span>
       </div>
 

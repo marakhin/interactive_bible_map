@@ -7,6 +7,7 @@ import { locationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
 import { getSynodalPassages, synodalMetadata } from "@/data/synodal";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
+import { getPrimaryEventLocation } from "@/domain/event-locations";
 import { track } from "@/lib/analytics";
 import { useBibleStore } from "@/store/useBibleStore";
 
@@ -21,7 +22,7 @@ export function EventSheet() {
   const toggleBookmark = useBibleStore((state) => state.toggleBookmark);
   const event = activeEventId ? eventById.get(activeEventId) : undefined;
   if (!event) return null;
-  const mainLocation = event.locations.map((item) => locationById.get(item.locationId)).find(Boolean);
+  const mainLocation = getPrimaryEventLocation(event, locationById);
   const storyline = event.storylineIds.map((id) => storylineById.get(id)).find(Boolean);
   const sequence = storyline?.eventIds ?? events.map((item) => item.id);
   const index = sequence.indexOf(event.id);
@@ -57,7 +58,7 @@ export function EventSheet() {
           <div className="synodal-source"><span>Синодальный перевод {synodalMetadata.edition} года · {synodalMetadata.books} книг · текст загружен в приложение</span><a href={synodalMetadata.source} target="_blank" rel="noreferrer">Источник текста</a></div>
         </>}
         {sheetTab === "history" && <><div className="section-kicker"><Info size={16} />Редакционная справка</div><p>{event.historicalNote ?? "Отдельная историческая реконструкция для этого события не добавлена. Карточка следует тексту указанного места Писания."}</p><div className="honesty-note"><b>{chronologyLabels[event.chronology.certainty]}</b><span>{event.chronology.noteRu}</span></div></>}
-        {sheetTab === "geography" && <><div className="section-kicker"><MapPin size={16} />Связанные места</div><div className="place-list">{event.locations.map((item) => { const place = locationById.get(item.locationId); return place ? <button key={`${event.id}-${item.locationId}-${item.order}`} onClick={() => { selectEvent(undefined); selectLocation(place.id); }}><span><b>{place.ancientNameRu}</b><small>{place.modernCountry}</small></span><em>{localizationLabels[place.localizationType]}</em></button> : null; })}</div></>}
+        {sheetTab === "geography" && <><div className="section-kicker"><MapPin size={16} />Связанные места</div><div className="place-list">{event.locations.map((item) => { const place = locationById.get(item.locationId); return place ? <button key={`${event.id}-${item.locationId}-${item.order}`} onClick={() => { selectEvent(undefined); selectLocation(place.id); }}><span><b>{place.ancientNameRu}</b><small>{place.modernCountry}</small>{place.localizationNoteRu && <small className="place-note">{place.localizationNoteRu}</small>}</span><em>{localizationLabels[place.localizationType]}</em></button> : null; })}</div></>}
         {sheetTab === "tradition" && <><div className="section-kicker"><BookOpen size={16} />Церковное Предание</div>{event.traditionNote ? <p>{event.traditionNote}</p> : <div className="empty-tab"><p>Для этого события отдельная заметка Предания пока не добавлена.</p><span>Этот раздел намеренно отделён от пересказа Писания.</span></div>}</>}
         {!!event.characters.length && <div className="participants"><div className="section-kicker"><Users size={16} />Участники</div><div>{event.characters.map((id) => { const person = characterById.get(id); return person ? <button key={id} onClick={() => { selectEvent(undefined); selectCharacter(id); }}>{person.nameRu}</button> : null; })}</div></div>}
       </div>

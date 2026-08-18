@@ -31,6 +31,10 @@ try {
   if (JSON.stringify(storyRailIds) !== JSON.stringify(storyTimelineIds)) {
     throw new Error(`Story timeline is out of sync: rail=${storyRailIds.join(',')}; timeline=${storyTimelineIds.join(',')}`);
   }
+  const storyMapIds = await page.locator('.bible-marker-dot').evaluateAll((markers) => [...new Set(markers.flatMap((marker) => (marker.getAttribute('data-event-ids') ?? '').split(' ').filter(Boolean)))].sort());
+  if (JSON.stringify(storyRailIds) !== JSON.stringify(storyMapIds)) {
+    throw new Error(`Story map is out of sync: rail=${storyRailIds.join(',')}; map=${storyMapIds.join(',')}`);
+  }
   await page.locator('.biblical-river-tigris').dispatchEvent('mouseover');
   await page.locator('.biblical-river-tooltip').waitFor({ state: "visible", timeout: 10_000 });
   const riverExplanation = await page.locator('.biblical-river-tooltip').textContent();
@@ -78,6 +82,11 @@ try {
   if (!result.synodalText) throw new Error("The inline Synodal Scripture text is missing");
   if (result.basemapError) throw new Error("The basemap error is visible");
   if (!result.mapBox || result.mapBox.width < 500 || result.mapBox.height < 300) throw new Error("Map is not visibly sized");
+  await page.getByRole('button', { name: 'Скрыть линии маршрута' }).click();
+  if (await page.locator('.biblical-route-line').count()) throw new Error("The visible map control did not hide the route");
+  if (await page.locator('.bible-marker-dot').count() !== result.markers) throw new Error("The visible route control also hid event points");
+  await page.getByRole('button', { name: 'Показать линии маршрута' }).click();
+  await page.locator('.biblical-route-line').waitFor({ state: "attached", timeout: 10_000 });
   await page.getByRole('button', { name: 'Фильтры' }).click();
   const routeToggle = page.locator('.switch-row').filter({ hasText: 'Соединять точки маршрутом' }).locator('input');
   await routeToggle.uncheck();
@@ -92,7 +101,7 @@ try {
   await page.locator('.biblical-river-tigris').waitFor({ state: "attached", timeout: 10_000 });
   await page.getByRole('button', { name: 'Показать на карте' }).click();
   await page.screenshot({ path: resolve(".map-browser-check.png"), fullPage: false });
-  console.log(JSON.stringify({ ...result, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, contextCards, browserErrors: errors }));
+  console.log(JSON.stringify({ ...result, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, contextCards, browserErrors: errors }));
 } finally {
   await browser.close();
 }

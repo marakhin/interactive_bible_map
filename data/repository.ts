@@ -29,6 +29,7 @@ export function validateDataset() {
   const storylineIds = new Set(validated.storylines.map((item) => item.id));
   for (const event of validated.events) {
     for (const location of event.locations) if (!locationIds.has(location.locationId)) throw new Error(`${event.id}: неизвестное место ${location.locationId}`);
+    if (event.locations.length && event.locations.filter((location) => location.role === "main").length !== 1) throw new Error(`${event.id}: должно быть ровно одно основное место события`);
     for (const character of event.characters) if (!characterIds.has(character)) throw new Error(`${event.id}: неизвестный персонаж ${character}`);
     for (const storyline of event.storylineIds) if (!storylineIds.has(storyline)) throw new Error(`${event.id}: неизвестный сюжет ${storyline}`);
     if (event.chronology.startYear === 0 || event.chronology.endYear === 0) throw new Error(`${event.id}: нулевой год запрещён`);

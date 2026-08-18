@@ -52,7 +52,7 @@ describe("библейская хронология", () => {
     const markEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "mark"));
     expect(mark.titleRu).toBe("От Марка");
     expect(mark.eventCount).toBe(markEvents.length);
-    expect(mark.eventCount).toBeGreaterThanOrEqual(14);
+    expect(mark.eventCount).toBeGreaterThanOrEqual(15);
     expect(markEvents.map((event) => event.id)).toEqual(expect.arrayContaining([
       "baptism-christ",
       "transfiguration",
@@ -60,6 +60,7 @@ describe("библейская хронология", () => {
       "last-supper",
       "crucifixion",
       "resurrection",
+      "galilee-appearance",
       "ascension",
     ]));
     expect(getTimelineEvents(markEvents).map((event) => event.id)).toEqual(markEvents.map((event) => event.id));

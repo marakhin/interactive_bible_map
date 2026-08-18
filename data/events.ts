@@ -12,6 +12,7 @@ type EventSeed = {
   verse?: number;
   summary: string;
   locations?: string[];
+  mainLocation?: string;
   characters?: string[];
   stories?: string[];
   year?: number;
@@ -33,6 +34,35 @@ const referenceBookByAbbreviation: Record<string, { bookId: string; bookRu: stri
 };
 
 const passagePattern = /^([А-ЯЁа-яё]+)\.\s+(\d+):(\d+)(?:[–—-](?:(\d+):)?(\d+))?$/u;
+
+const auditedMainLocationByEventId: Record<string, string> = {
+  "terah-leaves-ur": "ur",
+  "abraham-call": "harran",
+  "abraham-bethel": "bethel",
+  "abraham-intercedes": "hebron",
+  "offering-isaac": "moriah",
+  "jacob-bethel-dream": "bethel",
+  "joseph-sold": "dothan",
+  "exodus-departure": "egypt",
+  "jordan-crossing": "jordan-crossing",
+  "saul-anointed": "ramah",
+  "kingdom-divides": "shechem",
+  "samaria-falls": "samaria",
+  "jerusalem-falls": "jerusalem",
+  "flight-egypt": "egypt",
+  "baptism-christ": "jordan",
+  "cana-wedding": "cana",
+  "capernaum-ministry": "capernaum",
+  "temple-teaching": "jerusalem",
+  "gethsemane": "gethsemane",
+  "crucifixion": "golgotha",
+  "burial-christ": "holy-sepulchre",
+  "resurrection": "holy-sepulchre",
+  "galilee-appearance": "galilee-appearance",
+  "apostolic-council": "jerusalem",
+  "paul2-greece": "corinth",
+  "paul3-miletus": "miletus",
+};
 
 const makeReference = (seed: EventSeed, displayRu: string): ScriptureReference => {
   const match = passagePattern.exec(displayRu);
@@ -69,7 +99,13 @@ const makeEvent = (seed: EventSeed): BibleEvent => ({
   },
   locations: (seed.locations ?? []).map((locationId, index, all) => ({
     locationId,
-    role: index === 0 ? "origin" : index === all.length - 1 ? "destination" : "route_point",
+    role: locationId === (seed.mainLocation ?? auditedMainLocationByEventId[seed.id] ?? all[all.length - 1])
+      ? "main"
+      : index === 0
+        ? "origin"
+        : index === all.length - 1
+          ? "destination"
+          : "route_point",
     order: index + 1,
   })),
   characters: seed.characters ?? [],
@@ -163,9 +199,9 @@ const seeds: EventSeed[] = [
   { id: "nativity", title: "Рождество Господа Иисуса Христа", testament: "NT", bookId: "luke", bookRu: "От Луки", passage: "Лк. 2:1–20", parallelPassages: ["Мф. 1:18–25"], chapter: 2, verse: 1, summary: "В Вифлееме Пресвятая Дева Мария родила Господа Иисуса Христа; ангел возвестил пастухам великую радость.", locations: ["nazareth", "bethlehem"], characters: ["theotokos", "jesus-christ"], stories: ["christ"], year: -4, date: "Рождество Христово; исторический год приблизителен", certainty: "medium", importance: 5 },
   { id: "presentation", title: "Сретение Господне", testament: "NT", bookId: "luke", bookRu: "От Луки", passage: "Лк. 2:21–40", chapter: 2, verse: 21, summary: "Младенец Иисус был принесён в Иерусалимский храм; праведный Симеон принял Его и благословил Бога.", locations: ["bethlehem", "jerusalem"], characters: ["theotokos", "jesus-christ"], stories: ["christ"], year: -4, date: "сороковой день после Рождества; исторический год приблизителен", certainty: "medium", importance: 4 },
   { id: "flight-egypt", title: "Бегство святого семейства в Египет", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 2:13–23", chapter: 2, verse: 13, summary: "По повелению Ангела Господня Иосиф взял Младенца и Матерь Его и удалился в Египет; после смерти Ирода семья поселилась в Назарете.", locations: ["bethlehem", "egypt", "nazareth"], characters: ["theotokos", "jesus-christ"], stories: ["christ"], year: -3, date: "детство Господа; маршрут в Египте не указан", certainty: "low", importance: 4 },
-  { id: "baptism-christ", title: "Крещение Господне", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 3:13–17", parallelPassages: ["Мк. 1:9–11", "Лк. 3:21–22"], chapter: 3, verse: 13, summary: "Господь Иисус пришёл к Иоанну на Иордан и крестился; Дух Божий сошёл, и был слышен глас Отца.", locations: ["nazareth", "jordan"], characters: ["john-baptist", "jesus-christ"], stories: ["christ"], year: 27, date: "начало общественного служения; датировка приблизительна", certainty: "medium", importance: 5 },
+  { id: "baptism-christ", title: "Крещение Господне", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 3:13–17", parallelPassages: ["Мк. 1:9–11", "Лк. 3:21–22"], chapter: 3, verse: 13, summary: "Господь Иисус пришёл к Иоанну на Иордан и крестился; Дух Божий сошёл, и был слышен глас Отца.", locations: ["nazareth", "jordan"], characters: ["john-baptist", "jesus-christ"], stories: ["christ"], year: 27, date: "начало общественного служения; датировка приблизительна", certainty: "medium", importance: 5, traditionNote: "Писание называет реку Иордан, но не даёт современной координаты. На карте показан Аль-Махтас — православно почитаемая традиционная область Крещения на восточном берегу Иордана." },
   { id: "cana-wedding", title: "Брак в Кане Галилейской", testament: "NT", bookId: "john", bookRu: "От Иоанна", passage: "Ин. 2:1–12", chapter: 2, verse: 1, summary: "На браке в Кане Господь претворил воду в вино; это было началом Его знамений.", locations: ["jordan", "cana", "capernaum"], characters: ["theotokos", "jesus-christ"], stories: ["christ"], year: 27, date: "начало общественного служения", certainty: "medium", importance: 4 },
-  { id: "capernaum-ministry", title: "Служение в Капернауме", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 4:12–25", parallelPassages: ["Мк. 1:14–39", "Лк. 4:31–44"], chapter: 4, verse: 12, summary: "Господь поселился в Капернауме, проповедовал о Царстве Небесном и призвал первых учеников.", locations: ["nazareth", "capernaum", "sea-galilee"], characters: ["jesus-christ", "peter"], stories: ["christ"], year: 28, date: "период общественного служения", certainty: "medium", importance: 5 },
+  { id: "capernaum-ministry", title: "Служение в Капернауме", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 4:12–25", parallelPassages: ["Мк. 1:14–39", "Лк. 4:31–44"], chapter: 4, verse: 12, summary: "Господь, оставив Назарет, поселился в Капернауме, проповедовал о Царстве Небесном и призвал первых учеников у моря Галилейского.", locations: ["nazareth", "capernaum", "sea-galilee"], characters: ["jesus-christ", "peter"], stories: ["christ"], year: 28, date: "период общественного служения", certainty: "medium", importance: 5 },
   { id: "sermon-mount", title: "Нагорная проповедь", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 5:1–7:29", chapter: 5, verse: 1, summary: "На горе Господь учил учеников и народ о блаженствах, молитве, милосердии и исполнении воли Отца.", locations: ["mount-sermon"], characters: ["jesus-christ"], stories: ["christ"], year: 28, date: "период общественного служения; точное место не названо", certainty: "low", importance: 5 },
   { id: "storm-calmed", title: "Укрощение бури", testament: "NT", bookId: "mark", bookRu: "От Марка", passage: "Мк. 4:35–41", parallelPassages: ["Мф. 8:23–27", "Лк. 8:22–25"], chapter: 4, verse: 35, summary: "Во время переправы по морю Галилейскому Господь запретил ветру и морю, и сделалась великая тишина.", locations: ["sea-galilee"], characters: ["jesus-christ"], stories: ["christ"], year: 29, date: "период общественного служения", certainty: "medium" },
   { id: "peter-confession", title: "Исповедание апостола Петра", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 16:13–20", parallelPassages: ["Мк. 8:27–30", "Лк. 9:18–21"], chapter: 16, verse: 13, summary: "В окрестностях Кесарии Филипповой Пётр исповедал Иисуса Христом, Сыном Бога Живого.", locations: ["caesarea-philippi"], characters: ["jesus-christ", "peter"], stories: ["christ"], year: 30, date: "период общественного служения", certainty: "medium", importance: 5 },
@@ -174,11 +210,12 @@ const seeds: EventSeed[] = [
   { id: "entry-jerusalem", title: "Вход Господень в Иерусалим", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 21:1–11", parallelPassages: ["Мк. 11:1–11", "Лк. 19:28–44", "Ин. 12:12–19"], chapter: 21, verse: 1, summary: "Господь вошёл в Иерусалим, сидя на молодом осле; народ встречал Его пальмовыми ветвями.", locations: ["bethany", "mount-olives", "jerusalem"], characters: ["jesus-christ"], stories: ["christ", "holy-week"], year: 33, date: "Страстная седмица; год приблизителен", certainty: "medium", importance: 5 },
   { id: "temple-teaching", title: "Учение Господа в храме", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 21:12–23:39", parallelPassages: ["Мк. 11:15–12:44", "Лк. 19:45–21:4"], chapter: 21, verse: 12, summary: "Господь очистил храм от торговли и учил народ в Иерусалиме.", locations: ["jerusalem", "bethany"], characters: ["jesus-christ"], stories: ["holy-week"], year: 33, date: "Страстная седмица; год приблизителен", certainty: "medium" },
   { id: "last-supper", title: "Тайная вечеря", testament: "NT", bookId: "luke", bookRu: "От Луки", passage: "Лк. 22:7–38", parallelPassages: ["Мф. 26:17–35", "Мк. 14:12–31", "Ин. 13:1–38"], chapter: 22, verse: 7, summary: "В Иерусалиме Господь совершил Пасху с учениками и преподал им хлеб и чашу как Свои Тело и Кровь.", locations: ["jerusalem"], characters: ["jesus-christ", "peter"], stories: ["holy-week"], year: 33, date: "Страстная седмица; Великий четверг", certainty: "medium", importance: 5 },
-  { id: "gethsemane", title: "Моление в Гефсимании и взятие Господа", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 26:36–56", parallelPassages: ["Мк. 14:32–52", "Лк. 22:39–53", "Ин. 18:1–12"], chapter: 26, verse: 36, summary: "В Гефсимании Господь молился и затем был взят пришедшими с Иудой.", locations: ["jerusalem", "mount-olives"], characters: ["jesus-christ", "peter"], stories: ["holy-week"], year: 33, date: "Страстная седмица; ночь Великого четверга", certainty: "medium", importance: 5 },
+  { id: "gethsemane", title: "Моление в Гефсимании и взятие Господа", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 26:36–56", parallelPassages: ["Мк. 14:32–52", "Лк. 22:39–53", "Ин. 18:1–12"], chapter: 26, verse: 36, summary: "В Гефсимании Господь молился и затем был взят пришедшими с Иудой.", locations: ["jerusalem", "gethsemane"], characters: ["jesus-christ", "peter"], stories: ["holy-week"], year: 33, date: "Страстная седмица; ночь Великого четверга", certainty: "medium", importance: 5 },
   { id: "trial-christ", title: "Суд над Господом", testament: "NT", bookId: "john", bookRu: "От Иоанна", passage: "Ин. 18:12–19:16", parallelPassages: ["Мф. 26:57–27:31", "Мк. 14:53–15:20", "Лк. 22:54–23:25"], chapter: 18, verse: 12, summary: "Господа привели к первосвященникам и Пилату; Пилат предал Его на распятие.", locations: ["jerusalem"], characters: ["jesus-christ", "peter"], stories: ["holy-week"], year: 33, date: "Страстная седмица; Великая пятница", certainty: "medium", importance: 5 },
-  { id: "crucifixion", title: "Распятие Господа Иисуса Христа", testament: "NT", bookId: "john", bookRu: "От Иоанна", passage: "Ин. 19:17–37", parallelPassages: ["Мф. 27:32–56", "Мк. 15:21–41", "Лк. 23:26–49"], chapter: 19, verse: 17, summary: "Господь был распят на месте, называемом Голгофа, и предал дух.", locations: ["jerusalem"], characters: ["theotokos", "jesus-christ"], stories: ["holy-week"], year: 33, date: "Великая пятница; исторический год приблизителен", certainty: "medium", importance: 5 },
-  { id: "burial-christ", title: "Погребение Господа", testament: "NT", bookId: "john", bookRu: "От Иоанна", passage: "Ин. 19:38–42", parallelPassages: ["Мф. 27:57–61", "Мк. 15:42–47", "Лк. 23:50–56"], chapter: 19, verse: 38, summary: "Иосиф Аримафейский и Никодим положили тело Господа в новом гробе в саду близ места распятия.", locations: ["jerusalem"], characters: ["jesus-christ"], stories: ["holy-week"], year: 33, date: "Великая пятница; исторический год приблизителен", certainty: "medium", importance: 5 },
-  { id: "resurrection", title: "Воскресение Христово", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 28:1–10", parallelPassages: ["Мк. 16:1–11", "Лк. 24:1–12", "Ин. 20:1–18"], chapter: 28, verse: 1, summary: "В первый день недели жёны-мироносицы пришли ко гробу и услышали весть, что Господь воскрес.", locations: ["jerusalem"], characters: ["jesus-christ"], stories: ["christ", "holy-week"], year: 33, date: "Пасха Христова; исторический год приблизителен", certainty: "medium", importance: 5 },
+  { id: "crucifixion", title: "Распятие Господа Иисуса Христа", testament: "NT", bookId: "john", bookRu: "От Иоанна", passage: "Ин. 19:17–37", parallelPassages: ["Мф. 27:32–56", "Мк. 15:21–41", "Лк. 23:26–49"], chapter: 19, verse: 17, summary: "Господь был распят на месте, называемом Голгофа, и предал дух.", locations: ["jerusalem", "golgotha"], characters: ["theotokos", "jesus-christ"], stories: ["holy-week"], year: 33, date: "Великая пятница; исторический год приблизителен", certainty: "medium", importance: 5, traditionNote: "Писание точно называет место Голгофой, но не даёт координаты. На карте показана Голгофа в Храме Воскресения Христова согласно непрерывной церковной традиции Иерусалима." },
+  { id: "burial-christ", title: "Погребение Господа", testament: "NT", bookId: "john", bookRu: "От Иоанна", passage: "Ин. 19:38–42", parallelPassages: ["Мф. 27:57–61", "Мк. 15:42–47", "Лк. 23:50–56"], chapter: 19, verse: 38, summary: "Иосиф Аримафейский и Никодим положили тело Господа в новом гробе в саду близ места распятия.", locations: ["jerusalem", "holy-sepulchre"], characters: ["jesus-christ"], stories: ["holy-week"], year: 33, date: "Великая пятница; исторический год приблизителен", certainty: "medium", importance: 5 },
+  { id: "resurrection", title: "Воскресение Христово", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 28:1–10", parallelPassages: ["Мк. 16:1–11", "Лк. 24:1–12", "Ин. 20:1–18"], chapter: 28, verse: 1, summary: "В первый день недели жёны-мироносицы пришли ко гробу и услышали весть, что Господь воскрес.", locations: ["jerusalem", "holy-sepulchre"], characters: ["jesus-christ"], stories: ["christ", "holy-week"], year: 33, date: "Пасха Христова; исторический год приблизителен", certainty: "medium", importance: 5 },
+  { id: "galilee-appearance", title: "Явление воскресшего Господа ученикам в Галилее", testament: "NT", bookId: "matthew", bookRu: "От Матфея", passage: "Мф. 28:16–20", parallelPassages: ["Мк. 16:7"], chapter: 28, verse: 16, summary: "Одиннадцать учеников пришли на указанную Господом гору в Галилее и поклонились воскресшему Христу; в Евангелии от Марка Ангел заранее возвещает эту встречу.", locations: ["galilee-appearance"], characters: ["jesus-christ", "peter"], stories: ["christ"], year: 33, date: "после Воскресения; точная гора не названа", certainty: "low", importance: 4 },
   { id: "emmaus", title: "Явление воскресшего Господа на пути в Эммаус", testament: "NT", bookId: "luke", bookRu: "От Луки", passage: "Лк. 24:13–35", chapter: 24, verse: 13, summary: "Воскресший Господь шёл с двумя учениками, объяснял им Писания и был узнан в преломлении хлеба.", locations: ["jerusalem", "emmaus"], characters: ["jesus-christ"], stories: ["christ"], year: 33, date: "день Воскресения; место Эммауса спорно", certainty: "medium", importance: 4 },
   { id: "ascension", title: "Вознесение Господне", testament: "NT", bookId: "acts", bookRu: "Деяния", passage: "Деян. 1:1–12", parallelPassages: ["Мк. 16:19–20", "Лк. 24:50–53"], chapter: 1, verse: 1, summary: "После сорока дней явлений воскресший Господь вознёсся, а апостолы возвратились в Иерусалим с горы Елеонской.", locations: ["jerusalem", "mount-olives"], characters: ["jesus-christ", "peter"], stories: ["acts"], year: 33, date: "сороковой день по Воскресении; исторический год приблизителен", certainty: "medium", importance: 5 },
   { id: "pentecost", title: "Сошествие Святого Духа на апостолов", testament: "NT", bookId: "acts", bookRu: "Деяния", passage: "Деян. 2:1–47", chapter: 2, verse: 1, summary: "В день Пятидесятницы Святой Дух сошёл на апостолов; Пётр проповедовал, и многие приняли крещение.", locations: ["jerusalem"], characters: ["peter"], stories: ["acts"], year: 33, date: "пятидесятый день по Воскресении; исторический год приблизителен", certainty: "medium", importance: 5 },

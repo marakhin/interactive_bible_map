@@ -24,8 +24,8 @@ try {
   await page.locator(".active-selection-title b", { hasText: "От Марка" }).waitFor({ state: "visible", timeout: 10_000 });
 
   const markEvents = await page.locator(".event-rail > button").count();
-  if (markEvents !== 14) throw new Error(`Expected 14 Mark events, found ${markEvents}`);
-  await page.waitForFunction(() => document.querySelectorAll(".timeline-event").length === 14);
+  if (markEvents !== 15) throw new Error(`Expected 15 Mark events, found ${markEvents}`);
+  await page.waitForFunction(() => document.querySelectorAll(".timeline-event").length === 15);
   const contextCards = await page.locator(".context-card").count();
   if (contextCards !== 0) throw new Error(`The removed map context card is still rendered: ${contextCards}`);
   const markRailIds = await page.locator(".event-rail > button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")).sort());
@@ -33,6 +33,27 @@ try {
   if (JSON.stringify(markRailIds) !== JSON.stringify(markTimelineIds)) {
     throw new Error(`Mark timeline is out of sync: rail=${markRailIds.join(",")}; timeline=${markTimelineIds.join(",")}`);
   }
+  await page.waitForFunction(() => [...document.querySelectorAll(".bible-marker-dot")].some((marker) => marker.getAttribute("data-event-ids")));
+  const markMapIds = await page.locator(".bible-marker-dot").evaluateAll((markers) => [...new Set(markers.flatMap((marker) => (marker.getAttribute("data-event-ids") ?? "").split(" ").filter(Boolean)))].sort());
+  if (JSON.stringify(markRailIds) !== JSON.stringify(markMapIds)) {
+    throw new Error(`Mark map is out of sync: rail=${markRailIds.join(",")}; map=${markMapIds.join(",")}`);
+  }
+
+  const locationChecks = [
+    ["Крещение Господне", "Иордан", "jordan"],
+    ["Служение в Капернауме", "Капернаум", "capernaum"],
+    ["Распятие Господа Иисуса Христа", "Голгофа", "golgotha"],
+  ];
+  for (const [eventTitle, locationTitle, locationId] of locationChecks) {
+    await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
+    await page.locator(".event-meta button", { hasText: locationTitle }).waitFor({ state: "visible", timeout: 10_000 });
+    await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).waitFor({ state: "attached", timeout: 10_000 });
+  }
+
+  await page.locator(".event-rail > button").filter({ hasText: "Явление воскресшего Господа ученикам в Галилее" }).click();
+  await page.locator(".event-meta button", { hasText: "Галилея" }).waitFor({ state: "visible", timeout: 10_000 });
+  const galileeReferences = await page.locator(".synodal-heading b").textContent();
+  if (!galileeReferences?.includes("Мф. 28:16–20") || !galileeReferences.includes("Мк. 16:7")) throw new Error(`The Galilee appearance references are incomplete: ${galileeReferences}`);
   await page.locator(".event-rail > button").filter({ hasText: "Воскресение Христово" }).click();
   await page.locator('[data-synodal-text="true"]').waitFor({ state: "visible", timeout: 10_000 });
   const references = await page.locator(".synodal-heading b").textContent();
@@ -51,7 +72,7 @@ try {
   if (!page.url().includes("view=all")) throw new Error(`All-points mode is missing from URL: ${page.url()}`);
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, contextCards, references, passageHeadings, allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, contextCards, references, passageHeadings, galileeReferences, allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }
