@@ -15,10 +15,18 @@ describe("локальный Синодальный перевод", () => {
     expect(getSynodalPassages(creation.scriptureReferences[0])[0].verses[0].text).toBe("В начале сотворил Бог небо и землю.");
     expect(getSynodalPassages(john.scriptureReferences[0])[0].verses.length).toBeGreaterThan(1);
     const nativity = events.find((event) => event.id === "nativity")!;
-    const nativityPassages = getSynodalPassages(nativity.scriptureReferences[0]);
+    const nativityPassages = nativity.scriptureReferences.flatMap(getSynodalPassages);
     expect(nativityPassages).toHaveLength(2);
     expect(nativityPassages[1].displayRu).toBe("Мф. 1:18–25");
     expect(nativityPassages[1].verses[0].text).toContain("Рождество Иисуса Христа");
+  });
+
+  it("возвращает цитаты из всех Евангелий для общего события", () => {
+    const resurrection = events.find((event) => event.id === "resurrection")!;
+    const passages = resurrection.scriptureReferences.flatMap(getSynodalPassages);
+    expect(resurrection.scriptureReferences.map((reference) => reference.bookId)).toEqual(["matthew", "mark", "luke", "john"]);
+    expect(passages.map((passage) => passage.displayRu)).toEqual(["Мф. 28:1–10", "Мк. 16:1–11", "Лк. 24:1–12", "Ин. 20:1–18"]);
+    expect(passages.every((passage) => passage.verses.length > 0)).toBe(true);
   });
 
   it("покрывает прямым текстом все события", () => {

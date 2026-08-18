@@ -16,6 +16,7 @@ const HOME_NORTH_EAST: Leaflet.LatLngTuple = [43.5, 50];
 
 type BibleMapProps = {
   visibleEvents: BibleEvent[];
+  fitAllPoints?: boolean;
 };
 
 type LocatedMarker = {
@@ -33,7 +34,7 @@ function eventLocation(event: BibleEvent): BibleLocation | undefined {
   return preferred ? locationById.get(preferred.locationId) : undefined;
 }
 
-export function BibleMap({ visibleEvents }: BibleMapProps) {
+export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const leafletRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
@@ -50,6 +51,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
   const historicalRegionsEnabled = useBibleStore((state) => state.historicalRegionsEnabled);
   const biblicalRiversEnabled = useBibleStore((state) => state.biblicalRiversEnabled);
+  const routesEnabled = useBibleStore((state) => state.routesEnabled);
   const selectEvent = useBibleStore((state) => state.selectEvent);
 
   const markers = useMemo<LocatedMarker[]>(() => {
@@ -212,8 +214,12 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
 
     map.on("zoomend", showAutomaticLabels);
     showAutomaticLabels();
+    if (fitAllPoints && markers.length > 1) {
+      const bounds = markers.map((marker) => coordinates(marker.location)).filter((point): point is Leaflet.LatLngTuple => Boolean(point));
+      if (bounds.length > 1) map.fitBounds(leaflet.latLngBounds(bounds), { padding: [48, 48], maxZoom: 5, animate: true });
+    }
     return () => { map.off("zoomend", showAutomaticLabels); };
-  }, [activeEventId, mapInitialized, markers, selectEvent]);
+  }, [activeEventId, fitAllPoints, mapInitialized, markers, selectEvent]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;
@@ -221,7 +227,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
     const layer = routeLayerRef.current;
     if (!leaflet || !map || !layer) return;
     layer.clearLayers();
-    if (!route) return;
+    if (!route || !routesEnabled) return;
 
     leaflet.polyline(route.points, {
       className: "biblical-route-line",
@@ -233,7 +239,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       lineJoin: "round",
     }).addTo(layer);
     map.fitBounds(leaflet.latLngBounds(route.points), { padding: [80, 80], maxZoom: 6, animate: true });
-  }, [mapInitialized, route]);
+  }, [mapInitialized, route, routesEnabled]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;
@@ -313,7 +319,7 @@ export function BibleMap({ visibleEvents }: BibleMapProps) {
       <div className="map-legend" aria-label="Условные обозначения">
         <span><i className="legend-dot ot" />Ветхий Завет</span>
         <span><i className="legend-dot nt" />Новый Завет</span>
-        <span><i className="legend-line" />маршрут по Писанию</span>
+        {routesEnabled && <span><i className="legend-line" />маршрут по Писанию</span>}
         <span><i className="legend-river" />Тигр и Евфрат</span>
       </div>
 

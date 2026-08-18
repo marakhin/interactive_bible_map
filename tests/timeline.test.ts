@@ -47,4 +47,20 @@ describe("библейская хронология", () => {
     expect(exodus.placeCount).toBeGreaterThan(3);
     expect(exodusEvents.every((event) => event.locations.length > 0)).toBe(true);
   });
+  it("показывает в Евангелии от Марка все события с параллельным местом", () => {
+    const mark = bibleBookById.get("mark")!;
+    const markEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "mark"));
+    expect(mark.titleRu).toBe("От Марка");
+    expect(mark.eventCount).toBe(markEvents.length);
+    expect(mark.eventCount).toBeGreaterThanOrEqual(14);
+    expect(markEvents.map((event) => event.id)).toEqual(expect.arrayContaining([
+      "baptism-christ",
+      "transfiguration",
+      "entry-jerusalem",
+      "last-supper",
+      "crucifixion",
+      "resurrection",
+      "ascension",
+    ]));
+  });
 });

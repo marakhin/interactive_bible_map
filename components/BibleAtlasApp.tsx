@@ -31,6 +31,7 @@ export default function BibleAtlasApp() {
   const activeLocationId = useBibleStore((state) => state.activeLocationId);
   const activeBookId = useBibleStore((state) => state.activeBookId);
   const timelineFocused = useBibleStore((state) => state.timelineFocused);
+  const allPointsEnabled = useBibleStore((state) => state.allPointsEnabled);
   const activeTime = useBibleStore((state) => state.activeTime);
   const timelineZoom = useBibleStore((state) => state.timelineZoom);
   const storyPlaying = useBibleStore((state) => state.storyPlaying);
@@ -42,6 +43,7 @@ export default function BibleAtlasApp() {
   useEffect(() => {
     const initial = readUrlState();
     const state = useBibleStore.getState();
+    if (initial.allPointsEnabled) state.showAllPoints();
     if (initial.activeEventId && events.some((item) => item.id === initial.activeEventId)) state.selectEvent(initial.activeEventId);
     if (initial.activeStorylineId && storylineById.has(initial.activeStorylineId)) state.selectStoryline(initial.activeStorylineId);
     if (initial.activeCharacterId && characters.some((item) => item.id === initial.activeCharacterId)) state.selectCharacter(initial.activeCharacterId);
@@ -61,9 +63,9 @@ export default function BibleAtlasApp() {
 
   useEffect(() => {
     if (!ready) return;
-    writeUrlState({ activeEventId, activeStorylineId, activeCharacterId, activeLocationId, activeBookId, testamentFilter });
+    writeUrlState({ activeEventId, activeStorylineId, activeCharacterId, activeLocationId, activeBookId, testamentFilter, allPointsEnabled });
     if (activeEventId) localStorage.setItem("bible-map-last-event", activeEventId);
-  }, [ready, activeEventId, activeStorylineId, activeCharacterId, activeLocationId, activeBookId, testamentFilter]);
+  }, [ready, activeEventId, activeStorylineId, activeCharacterId, activeLocationId, activeBookId, testamentFilter, allPointsEnabled]);
 
   useEffect(() => { if (ready) localStorage.setItem("bible-map-bookmarks", JSON.stringify(bookmarkIds)); }, [ready, bookmarkIds]);
 
@@ -94,7 +96,7 @@ export default function BibleAtlasApp() {
     else if (activeCharacterId) result = result.filter((event) => event.characters.includes(activeCharacterId));
     else if (activeLocationId) result = result.filter((event) => event.locations.some((item) => item.locationId === activeLocationId));
     else if (activeBookId) result = result.filter((event) => event.scriptureReferences.some((ref) => ref.bookId === activeBookId));
-    else {
+    else if (!allPointsEnabled) {
       if (timelineFocused) {
         const radii = [240, 120, 55, 15, 3];
         const radius = radii[timelineZoom - 1];
@@ -104,18 +106,33 @@ export default function BibleAtlasApp() {
       }
     }
     return result;
-  }, [testamentFilter, activeStorylineId, activeCharacterId, activeLocationId, activeBookId, timeWindow, timelineFocused, activeTime, timelineZoom]);
+  }, [testamentFilter, activeStorylineId, activeCharacterId, activeLocationId, activeBookId, timeWindow, timelineFocused, activeTime, timelineZoom, allPointsEnabled]);
 
   const context = activeStorylineId ? storylineById.get(activeStorylineId) : undefined;
   const person = activeCharacterId ? characters.find((item) => item.id === activeCharacterId) : undefined;
   const place = activeLocationId ? locationById.get(activeLocationId) : undefined;
   const book = activeBookId ? bibleBookById.get(activeBookId) : undefined;
+  const mappedEventCount = visibleEvents.filter((event) => event.locations.some((item) => {
+    const location = locationById.get(item.locationId);
+    return location?.latitude !== undefined && location.longitude !== undefined;
+  })).length;
   const closeOnboarding = () => { localStorage.setItem("bible-map-onboarding", "seen"); setOnboarding(0); };
+  const contextEyebrow = context ? "Сюжетная линия" : person ? "История человека" : place ? "Что здесь произошло?" : book ? "География книги" : allPointsEnabled ? "Обзор без фильтров" : timelineFocused ? "Что происходило в это время?" : "Вся библейская история";
+  const contextTitle = context?.titleRu ?? person?.nameRu ?? place?.ancientNameRu ?? book?.titleRu ?? (allPointsEnabled ? "Все точки Писания" : timelineFocused ? `${visibleEvents.length} событий на карте` : "Исследуйте историю Писания");
+  const contextDescription = context?.descriptionRu ?? person?.descriptionRu ?? (place
+    ? `${visibleEvents.length} связанных событий из разных эпох.`
+    : book
+      ? `${book.placeCount} мест и ${book.eventCount} событий, прямо связанных с книгой «${book.titleRu}».`
+      : allPointsEnabled
+        ? `${mappedEventCount} событий с известной или обозначенной локализацией показаны одновременно. Книжные и сюжетные фильтры сняты.`
+        : timelineFocused
+          ? "Карта показывает события в выбранном временном окне. Изменяйте масштаб шкалы для большей или меньшей детализации."
+          : "Двигайте временную шкалу или выберите сюжет или книгу — и карта покажет места и соответствующие отрывки Писания.");
 
   return (
     <main className="atlas-app">
       <Header onAbout={() => setAboutOpen(true)} />
-      <div className="workspace"><StudyPanel /><div className="map-column"><BibleMap visibleEvents={visibleEvents} /><div className="context-card"><div className="context-icon">{context ? <Route /> : person || book ? <BookOpen /> : place ? <MapPin /> : <Sparkles />}</div><div><span className="eyebrow">{context ? "Сюжетная линия" : person ? "История человека" : place ? "Что здесь произошло?" : book ? "География книги" : timelineFocused ? "Что происходило в это время?" : "Вся библейская история"}</span><h1>{context?.titleRu ?? person?.nameRu ?? place?.ancientNameRu ?? book?.titleRu ?? (timelineFocused ? `${visibleEvents.length} событий на карте` : "Исследуйте историю Писания")}</h1><p>{context?.descriptionRu ?? person?.descriptionRu ?? (place ? `${visibleEvents.length} связанных событий из разных эпох.` : book ? `${book.placeCount} мест и ${book.eventCount} событий, прямо связанных с книгой «${book.titleRu}».` : timelineFocused ? "Карта показывает события в выбранном временном окне. Изменяйте масштаб шкалы для большей или меньшей детализации." : "Двигайте временную шкалу или выберите сюжет или книгу — и карта покажет места и соответствующие отрывки Писания.")}</p></div>{!context && !person && !place && !book && !timelineFocused ? <button onClick={() => { selectStoryline("abraham"); setStudyOpen(true); }}><span>Начать с Авраама</span><ArrowRight size={18} /></button> : <button onClick={() => setStudyOpen(true)}><span>{visibleEvents.length} событий</span><ArrowRight size={18} /></button>}</div><Timeline visibleEvents={visibleEvents} /></div></div>
+      <div className="workspace"><StudyPanel /><div className="map-column"><BibleMap visibleEvents={visibleEvents} fitAllPoints={allPointsEnabled} /><div className="context-card"><div className="context-icon">{context ? <Route /> : person || book ? <BookOpen /> : place || allPointsEnabled ? <MapPin /> : <Sparkles />}</div><div><span className="eyebrow">{contextEyebrow}</span><h1>{contextTitle}</h1><p>{contextDescription}</p></div>{!context && !person && !place && !book && !timelineFocused && !allPointsEnabled ? <button onClick={() => { selectStoryline("abraham"); setStudyOpen(true); }}><span>Начать с Авраама</span><ArrowRight size={18} /></button> : <button onClick={() => setStudyOpen(true)}><span>{mappedEventCount} событий</span><ArrowRight size={18} /></button>}</div><Timeline visibleEvents={visibleEvents} /></div></div>
       <EventSheet /><SearchOverlay /><FiltersPanel /><AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
       {onboarding > 0 && <div className="onboarding"><div className="onboarding-card"><span>{onboarding}/3</span>{onboarding === 1 && <><div className="onboarding-art timeline-art"><i /><i /><i /></div><h2>Путешествуйте по истории</h2><p>Двигайте временную шкалу, чтобы видеть события Писания в их последовательности.</p></>}{onboarding === 2 && <><div className="onboarding-art marker-art"><i /></div><h2>Открывайте события</h2><p>Нажмите на маркер или подпись места, чтобы прочитать соответствующий текст Священного Писания.</p></>}{onboarding === 3 && <><div className="onboarding-art route-art"><i /></div><h2>Следуйте за повествованием</h2><p>Выберите человека или сюжет, чтобы увидеть его путь на карте.</p></>}<div className="onboarding-actions"><button onClick={closeOnboarding}>Пропустить</button><button onClick={() => onboarding < 3 ? setOnboarding(onboarding + 1) : closeOnboarding()}>{onboarding < 3 ? "Далее" : "Начать"}<ArrowRight size={17} /></button></div></div></div>}
     </main>

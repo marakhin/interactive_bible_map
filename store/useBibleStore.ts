@@ -17,8 +17,10 @@ interface BibleState {
   activeBookId?: string;
   timelineZoom: number;
   timelineFocused: boolean;
+  allPointsEnabled: boolean;
   historicalRegionsEnabled: boolean;
   biblicalRiversEnabled: boolean;
+  routesEnabled: boolean;
   searchOpen: boolean;
   studyOpen: boolean;
   filtersOpen: boolean;
@@ -47,8 +49,10 @@ interface BibleState {
   toggleBookmark: (id: string) => void;
   setStoryPlaying: (value: boolean) => void;
   setStorySpeed: (value: BibleState["storySpeed"]) => void;
+  showAllPoints: () => void;
   toggleRegions: () => void;
   toggleRivers: () => void;
+  toggleRoutes: () => void;
 }
 
 export const useBibleStore = create<BibleState>((set) => ({
@@ -57,8 +61,10 @@ export const useBibleStore = create<BibleState>((set) => ({
   timeWindow: { start: -2200, end: 100 },
   timelineZoom: 1,
   timelineFocused: false,
+  allPointsEnabled: false,
   historicalRegionsEnabled: false,
   biblicalRiversEnabled: true,
+  routesEnabled: true,
   searchOpen: false,
   studyOpen: false,
   filtersOpen: false,
@@ -68,15 +74,15 @@ export const useBibleStore = create<BibleState>((set) => ({
   bookmarkIds: [],
   storyPlaying: false,
   storySpeed: 1,
-  setTestament: (testamentFilter) => set({ testamentFilter }),
-  setTime: (activeTime) => set({ activeTime, timelineFocused: true }),
+  setTestament: (testamentFilter) => set({ testamentFilter, allPointsEnabled: false }),
+  setTime: (activeTime) => set({ activeTime, timelineFocused: true, allPointsEnabled: false }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setZoom: (timelineZoom) => set({ timelineZoom }),
   selectEvent: (activeEventId) => set({ activeEventId, sheetTab: "scripture" }),
-  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
-  selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
-  selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
-  selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, timelineFocused: false, storyPlaying: false }),
+  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setStudyOpen: (studyOpen) => set({ studyOpen }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
@@ -87,6 +93,8 @@ export const useBibleStore = create<BibleState>((set) => ({
   toggleBookmark: (id) => set((state) => ({ bookmarkIds: state.bookmarkIds.includes(id) ? state.bookmarkIds.filter((item) => item !== id) : [...state.bookmarkIds, id] })),
   setStoryPlaying: (storyPlaying) => set({ storyPlaying }),
   setStorySpeed: (storySpeed) => set({ storySpeed }),
+  showAllPoints: () => set({ testamentFilter: "ALL", activeStorylineId: undefined, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: true, storyPlaying: false }),
   toggleRegions: () => set((state) => ({ historicalRegionsEnabled: !state.historicalRegionsEnabled })),
   toggleRivers: () => set((state) => ({ biblicalRiversEnabled: !state.biblicalRiversEnabled })),
+  toggleRoutes: () => set((state) => ({ routesEnabled: !state.routesEnabled })),
 }));

@@ -71,6 +71,12 @@ try {
   if (result.basemapError) throw new Error("The basemap error is visible");
   if (!result.mapBox || result.mapBox.width < 500 || result.mapBox.height < 300) throw new Error("Map is not visibly sized");
   await page.getByRole('button', { name: 'Фильтры' }).click();
+  const routeToggle = page.locator('.switch-row').filter({ hasText: 'Соединять точки маршрутом' }).locator('input');
+  await routeToggle.uncheck();
+  if (await page.locator('.biblical-route-line').count()) throw new Error("The route filter did not hide the route");
+  if (await page.locator('.bible-marker-dot').count() !== result.markers) throw new Error("Hiding the route also hid event points");
+  await routeToggle.check();
+  await page.locator('.biblical-route-line').waitFor({ state: "attached", timeout: 10_000 });
   const riverToggle = page.locator('.switch-row').filter({ hasText: 'Реки, названные в Писании' }).locator('input');
   await riverToggle.uncheck();
   if (await page.locator('.biblical-river').count()) throw new Error("The biblical rivers filter did not hide the layer");

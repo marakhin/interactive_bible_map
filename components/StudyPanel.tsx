@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, Bookmark, ChevronRight, CircleUserRound, History, Pause, Play, Route, Sparkles, X } from "lucide-react";
+import { BookMarked, Bookmark, ChevronRight, CircleUserRound, History, MapPinned, Pause, Play, Route, Sparkles, X } from "lucide-react";
 import { bibleBookById, bibleBooks } from "@/data/books";
 import { characters } from "@/data/characters";
 import { events } from "@/data/events";
@@ -15,11 +15,13 @@ export function StudyPanel() {
   const activeCharacterId = useBibleStore((state) => state.activeCharacterId);
   const activeLocationId = useBibleStore((state) => state.activeLocationId);
   const activeBookId = useBibleStore((state) => state.activeBookId);
+  const allPointsEnabled = useBibleStore((state) => state.allPointsEnabled);
   const setOpen = useBibleStore((state) => state.setStudyOpen);
   const selectStoryline = useBibleStore((state) => state.selectStoryline);
   const selectCharacter = useBibleStore((state) => state.selectCharacter);
   const selectBook = useBibleStore((state) => state.selectBook);
   const selectEvent = useBibleStore((state) => state.selectEvent);
+  const showAllPoints = useBibleStore((state) => state.showAllPoints);
   const bookmarkIds = useBibleStore((state) => state.bookmarkIds);
   const storyPlaying = useBibleStore((state) => state.storyPlaying);
   const storySpeed = useBibleStore((state) => state.storySpeed);
@@ -48,7 +50,7 @@ export function StudyPanel() {
           : undefined;
   const selectStory = (id: string) => { selectStoryline(id); track("story_started", { id }); setOpen(false); };
   const selectBookStudy = (id: string) => { selectBook(id); track("book_started", { id }); setOpen(false); };
-  const resetSelection = () => { selectStoryline(undefined); selectCharacter(undefined); selectBook(undefined); };
+  const showEveryPoint = () => { showAllPoints(); track("all_points_opened"); setOpen(false); };
 
   return (
     <aside className={`study-panel ${open ? "open" : ""}`} aria-label="Выбор пути изучения">
@@ -58,8 +60,9 @@ export function StudyPanel() {
         {activeStorylineId && <div className="story-player"><button onClick={() => setStoryPlaying(!storyPlaying)}>{storyPlaying ? <Pause size={17} /> : <Play size={17} />}{storyPlaying ? "Пауза" : "История"}</button><div>{([0.5, 1, 2] as const).map((speed) => <button key={speed} aria-pressed={storySpeed === speed} onClick={() => setStorySpeed(speed)}>{speed}×</button>)}</div></div>}
         {activeBookId && <p className="book-selection-note">На карте показаны места событий, прямо связанных с этой книгой. Выберите отрывок, чтобы открыть текст Писания.</p>}
         <div className="event-rail">{selectionEvents.map((event, index) => <button key={event.id} onClick={() => { selectEvent(event.id); setOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span><div><b>{event.titleRu}</b><small>{event.scriptureReferences.filter((reference) => !activeBookId || reference.bookId === activeBookId).map((reference) => reference.displayRu).join("; ")}</small></div><ChevronRight size={16} /></button>)}</div>
-        <button className="reset-selection" onClick={resetSelection}>Вернуться ко всей истории</button>
+        <button className="reset-selection" onClick={showEveryPoint}>Показать все точки без фильтров</button>
       </section> : <>
+        <button className="all-points-study" aria-pressed={allPointsEnabled} onClick={showEveryPoint}><span><MapPinned size={19} /></span><div><b>Все точки Писания</b><small>Без фильтров по книгам и сюжетам</small></div><ChevronRight size={18} /></button>
         <button className="featured-study" onClick={() => selectStory("abraham")}><span><Sparkles size={19} /></span><div><small>Рекомендуем начать здесь</small><b>Путь Авраама</b><p>Ур → Харран → Сихем → Вефиль → Хеврон</p></div><ChevronRight /></button>
         <section><h3><Route size={17} />Сюжетные линии</h3><div className="study-list">{storylines.filter((item) => item.importance === 5).map((story) => <button key={story.id} onClick={() => selectStory(story.id)}><span className={`story-dot ${story.testament.toLowerCase()}`} style={{ backgroundColor: story.color }} /><div><b>{story.titleRu}</b><small>{story.eventIds.length} событий · {story.testament === "OT" ? "ВЗ" : "НЗ"}</small></div><ChevronRight size={17} /></button>)}</div></section>
         <section><h3><BookMarked size={17} />Книги Писания</h3><div className="study-list book-study-list">{bibleBooks.map((book) => <button key={book.id} data-book-id={book.id} onClick={() => selectBookStudy(book.id)}><BookMarked size={15} className={book.testament.toLowerCase()} /><div><b>{book.titleRu}</b><small>{book.placeCount} мест · {book.eventCount} событий · {book.testament === "OT" ? "ВЗ" : "НЗ"}</small></div><ChevronRight size={17} /></button>)}</div></section>
