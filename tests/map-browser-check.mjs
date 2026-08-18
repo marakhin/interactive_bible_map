@@ -35,6 +35,30 @@ try {
   if (JSON.stringify(storyRailIds) !== JSON.stringify(storyMapIds)) {
     throw new Error(`Story map is out of sync: rail=${storyRailIds.join(',')}; map=${storyMapIds.join(',')}`);
   }
+  const clickZoomBefore = Number(await page.locator('.map-stage').getAttribute('data-map-zoom'));
+  const visibleMarkerIndex = await page.locator('.bible-marker-dot').evaluateAll((markers) => markers.findIndex((marker) => {
+    const rect = marker.getBoundingClientRect();
+    return rect.top > 80 && rect.bottom < window.innerHeight - 140 && rect.left > 360 && rect.right < window.innerWidth - 30;
+  }));
+  if (visibleMarkerIndex < 0) throw new Error("No event point is available for the click zoom test");
+  await page.evaluate(() => {
+    const stage = document.querySelector('.map-stage');
+    window.__bibleMapZoomSamples = [Number(stage?.getAttribute('data-map-zoom'))];
+    window.__bibleMapZoomObserver = new MutationObserver(() => {
+      window.__bibleMapZoomSamples.push(Number(stage?.getAttribute('data-map-zoom')));
+    });
+    if (stage) window.__bibleMapZoomObserver.observe(stage, { attributes: true, attributeFilter: ['data-map-zoom'] });
+  });
+  await page.locator('.bible-marker-dot').nth(visibleMarkerIndex).click();
+  await page.locator('.event-sheet').waitFor({ state: "visible", timeout: 10_000 });
+  await page.waitForTimeout(800);
+  const clickZoomSamples = await page.evaluate(() => {
+    window.__bibleMapZoomObserver?.disconnect();
+    return window.__bibleMapZoomSamples ?? [];
+  });
+  if (clickZoomSamples.some((zoom) => zoom !== clickZoomBefore)) throw new Error(`Clicking a point changed zoom: ${clickZoomBefore} -> ${clickZoomSamples.join(',')}`);
+  await page.locator('.event-sheet .close-button[aria-label="Закрыть"]').click();
+  await page.locator('.event-sheet').waitFor({ state: "detached", timeout: 10_000 });
   await page.locator('.biblical-river-tigris').dispatchEvent('mouseover');
   await page.locator('.biblical-river-tooltip').waitFor({ state: "visible", timeout: 10_000 });
   const riverExplanation = await page.locator('.biblical-river-tooltip').textContent();
@@ -125,7 +149,7 @@ try {
   await page.locator('.biblical-river-tigris').waitFor({ state: "attached", timeout: 10_000 });
   await page.getByRole('button', { name: 'Показать на карте' }).click();
   await page.screenshot({ path: resolve(".map-browser-check.png"), fullPage: false });
-  console.log(JSON.stringify({ ...result, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, contextCards, browserErrors: errors }));
+  console.log(JSON.stringify({ ...result, clickZoomBefore, clickZoomSamples, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, contextCards, browserErrors: errors }));
 } finally {
   await browser.close();
 }

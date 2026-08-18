@@ -139,7 +139,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       routePane.style.zIndex = "390";
       routePane.style.pointerEvents = "none";
       mapRef.current = map;
-      map.on("zoomend", () => setMapZoom(map.getZoom()));
+      map.on("zoom", () => setMapZoom(map.getZoom()));
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
       routeLayerRef.current = leaflet.layerGroup().addTo(map);
       regionLayerRef.current = leaflet.layerGroup().addTo(map);
@@ -332,7 +332,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     const active = activeEventId ? events.find((event) => event.id === activeEventId) : undefined;
     const point = active ? coordinates(getPrimaryEventLocation(active, locationById)) : undefined;
     if (!map || !point) return;
-    map.flyTo(point, Math.max(7, map.getZoom()), { animate: true, duration: 0.65 });
+    map.panTo(point, { animate: true, duration: 0.35, easeLinearity: 0.25 });
   }, [activeEventId, mapInitialized]);
 
   return (
