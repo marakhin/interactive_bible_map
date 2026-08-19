@@ -1,5 +1,7 @@
 import type { BibleEvent, Chronology } from "./types";
 
+export type TimeRange = { start: number; end: number };
+
 export function formatBiblicalYear(year: number): string {
   if (year === 0) return "граница летоисчисления";
   return year < 0 ? `${Math.abs(year)} г. до Р. Х.` : `${year} г. по Р. Х.`;
@@ -7,6 +9,10 @@ export function formatBiblicalYear(year: number): string {
 
 export function nextBiblicalYear(year: number): number {
   return year === -1 ? 1 : year + 1;
+}
+
+export function previousBiblicalYear(year: number): number {
+  return year === 1 ? -1 : year - 1;
 }
 
 export function chronologySortValue(chronology: Chronology): number {
@@ -52,22 +58,28 @@ export function getTimelineTicks(start: number, end: number, count = 6): number[
   });
 }
 
-export function getWindowForZoom(center: number, zoom: number): { start: number; end: number } {
+export function getWindowForZoom(center: number, zoom: number): TimeRange {
   const widths = [2300, 1100, 500, 160, 40];
   const width = widths[Math.max(0, Math.min(widths.length - 1, zoom - 1))];
-  return { start: Math.round(center - width / 2), end: Math.round(center + width / 2) };
+  const start = Math.round(center - width / 2);
+  const end = Math.round(center + width / 2);
+  return { start: start === 0 ? -1 : start, end: end === 0 ? 1 : end };
 }
 
-export function getTimelineFit(events: BibleEvent[]): { activeTime: number; timeWindow: { start: number; end: number }; zoom: number } | undefined {
-  const years = events
-    .map((event) => event.chronology.startYear)
-    .filter((year): year is number => year !== undefined);
-  if (!years.length) return undefined;
+export function getTimelineZoomForSpan(span: number): number {
+  return span <= 32 ? 5 : span <= 128 ? 4 : span <= 400 ? 3 : span <= 880 ? 2 : 1;
+}
 
-  const earliest = Math.min(...years);
-  const latest = Math.max(...years);
+export function getTimelineFit(events: BibleEvent[]): { timeRange: TimeRange; timeWindow: TimeRange; zoom: number } | undefined {
+  const datedEvents = events.filter((event) => event.chronology.startYear !== undefined);
+  if (!datedEvents.length) return undefined;
+
+  const earliest = Math.min(...datedEvents.map((event) => event.chronology.startYear!));
+  const latest = Math.max(...datedEvents.map((event) => event.chronology.endYear ?? event.chronology.startYear!));
   const span = latest - earliest;
-  const zoom = span <= 32 ? 5 : span <= 128 ? 4 : span <= 400 ? 3 : span <= 880 ? 2 : 1;
-  const activeTime = Math.round((earliest + latest) / 2) || 1;
-  return { activeTime, timeWindow: getWindowForZoom(activeTime, zoom), zoom };
+  const zoom = getTimelineZoomForSpan(span);
+  const timeRange = earliest === latest
+    ? { start: previousBiblicalYear(earliest), end: nextBiblicalYear(latest) }
+    : { start: earliest, end: latest };
+  return { timeRange, timeWindow: timeRange, zoom };
 }

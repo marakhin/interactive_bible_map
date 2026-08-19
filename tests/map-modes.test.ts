@@ -34,4 +34,12 @@ describe("режимы отображения карты", () => {
     expect(state.activeStorylineId).toBe("abraham");
     expect(state.routesEnabled).toBe(false);
   });
+
+  it("включает временной фильтр при изменении двустороннего диапазона", () => {
+    useBibleStore.getState().setTimeRange({ start: -600, end: -500 });
+    const state = useBibleStore.getState();
+    expect(state.timeRange).toEqual({ start: -600, end: -500 });
+    expect(state.timelineFocused).toBe(true);
+    expect(state.allPointsEnabled).toBe(false);
+  });
 });

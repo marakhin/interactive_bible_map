@@ -3,18 +3,32 @@ import { expect, test } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("bible-map-onboarding", "seen"));
   await page.goto("/");
+  await expect(page.locator(".atlas-app")).toHaveAttribute("data-app-ready", "true");
 });
 
 test("путь Авраама открывает маршрут и событие", async ({ page }) => {
-  await page.getByLabel("Открыть выбор сюжета").click().catch(() => undefined);
+  const studyMenu = page.getByLabel("Открыть выбор сюжета");
+  if (await studyMenu.isVisible()) await studyMenu.click();
   await page.getByRole("button", { name: /Путь Авраама/ }).first().click();
   await expect(page.getByText("Путь Авраама", { exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: /Призвание Аврама/ }).click();
+  const timeline = page.locator(".timeline");
+  await expect(timeline).not.toHaveAttribute("data-range-start", "-2200");
+  const fittedRange = await timeline.evaluate((element) => ({
+    rangeStart: Number((element as HTMLElement).dataset.rangeStart),
+    rangeEnd: Number((element as HTMLElement).dataset.rangeEnd),
+    windowStart: Number((element as HTMLElement).dataset.windowStart),
+    windowEnd: Number((element as HTMLElement).dataset.windowEnd),
+  }));
+  expect(fittedRange.rangeStart).toBe(fittedRange.windowStart);
+  expect(fittedRange.rangeEnd).toBe(fittedRange.windowEnd);
+  await page.locator('.event-rail [data-event-id="abraham-call"]').click();
   await expect(page.getByRole("heading", { name: "Призвание Аврама" })).toBeVisible();
 });
 
 test("поиск Иерусалима открывает режим места", async ({ page }) => {
-  await page.getByLabel("Поиск").click().catch(async () => page.getByText(/Найти событие/).click());
+  const mobileSearch = page.getByLabel("Поиск");
+  if (await mobileSearch.isVisible()) await mobileSearch.click();
+  else await page.getByText(/Найти событие/).click();
   await page.getByLabel("Поисковый запрос").fill("Иерусалим");
   await page.getByRole("button", { name: /Иерусалим/ }).last().click();
   await expect(page.getByText("Что здесь произошло?")).toBeVisible();
@@ -25,4 +39,116 @@ test("фильтр Нового Завета меняет состояние URL
   await page.getByRole("button", { name: "Новый" }).click();
   await page.getByRole("button", { name: "Показать на карте" }).click();
   await expect(page).toHaveURL(/testament=NT/);
+});
+
+test("книга ограничивает шкалу своими событиями, а диапазон меняется и перемещается", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  await page.getByRole("button", { name: /От Марка/ }).click();
+
+  const timeline = page.locator(".timeline");
+  const startHandle = page.getByRole("slider", { name: "Начало временного диапазона" });
+  const endHandle = page.getByRole("slider", { name: "Конец временного диапазона" });
+  await expect(startHandle).toBeVisible();
+  await expect(endHandle).toBeVisible();
+  await expect(timeline).not.toHaveAttribute("data-range-start", "-2200");
+
+  const fitted = await timeline.evaluate((element) => ({
+    rangeStart: Number((element as HTMLElement).dataset.rangeStart),
+    rangeEnd: Number((element as HTMLElement).dataset.rangeEnd),
+    windowStart: Number((element as HTMLElement).dataset.windowStart),
+    windowEnd: Number((element as HTMLElement).dataset.windowEnd),
+  }));
+  expect(fitted.rangeStart).toBe(fitted.windowStart);
+  expect(fitted.rangeEnd).toBe(fitted.windowEnd);
+
+  await startHandle.press("ArrowRight");
+  const narrowed = {
+    start: Number(await startHandle.getAttribute("aria-valuenow")),
+    end: Number(await endHandle.getAttribute("aria-valuenow")),
+  };
+  expect(narrowed.start).toBeGreaterThan(fitted.rangeStart);
+  expect(narrowed.end).toBe(fitted.rangeEnd);
+
+  const selection = page.locator(".timeline-range-selection");
+  const dragPoint = await selection.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const candidates = [0.5, 0.65, 0.35, 0.8, 0.2];
+    const ratio = candidates.find((item) => document.elementFromPoint(rect.left + rect.width * item, rect.top + rect.height / 2) === element) ?? 0.5;
+    return { x: rect.left + rect.width * ratio, y: rect.top + rect.height / 2 };
+  });
+  const trackBox = await page.locator(".timeline-track").boundingBox();
+  const yearWidth = (trackBox?.width ?? 0) / Math.max(1, fitted.windowEnd - fitted.windowStart);
+  await page.mouse.move(dragPoint.x, dragPoint.y);
+  await page.mouse.down();
+  await page.mouse.move(dragPoint.x - Math.max(8, yearWidth), dragPoint.y, { steps: 4 });
+  await page.mouse.up();
+
+  await expect(startHandle).toHaveAttribute("aria-valuenow", String(fitted.rangeStart));
+  expect(Number(await endHandle.getAttribute("aria-valuenow"))).toBeLessThan(narrowed.end);
+});
+
+test("мобильный Safari сохраняет интерфейс внутри viewport", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile-safari"));
+
+  const layout = await page.evaluate(() => {
+    const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().toJSON();
+    const tapTargets = [...document.querySelectorAll<HTMLElement>(".app-header .icon-button")].map((element) => {
+      const box = element.getBoundingClientRect();
+      return { width: box.width, height: box.height };
+    });
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
+      atlas: rect(".atlas-app"),
+      header: rect(".app-header"),
+      map: rect(".map-stage"),
+      timeline: rect(".timeline"),
+      tapTargets,
+    };
+  });
+
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewport.width + 1);
+  expect(layout.bodyWidth).toBeLessThanOrEqual(layout.viewport.width + 1);
+  expect(layout.atlas?.width).toBeLessThanOrEqual(layout.viewport.width + 1);
+  expect(layout.atlas?.height).toBeLessThanOrEqual(layout.viewport.height + 1);
+  expect(layout.map?.height).toBeGreaterThan(150);
+  expect(layout.timeline?.bottom).toBeLessThanOrEqual(layout.viewport.height + 1);
+  expect(layout.header?.top).toBeGreaterThanOrEqual(-1);
+  expect(layout.tapTargets.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
+
+  await page.getByLabel("Поиск").click();
+  const searchLayout = await page.evaluate(() => {
+    const panel = document.querySelector(".search-panel")?.getBoundingClientRect();
+    const input = document.querySelector(".search-input input");
+    return {
+      top: panel?.top,
+      right: panel?.right,
+      bottom: panel?.bottom,
+      left: panel?.left,
+      fontSize: input ? Number.parseFloat(getComputedStyle(input).fontSize) : 0,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    };
+  });
+  expect(searchLayout.top).toBeGreaterThanOrEqual(-1);
+  expect(searchLayout.left).toBeGreaterThanOrEqual(-1);
+  expect(searchLayout.right).toBeLessThanOrEqual(searchLayout.viewport.width + 1);
+  expect(searchLayout.bottom).toBeLessThanOrEqual(searchLayout.viewport.height + 1);
+  expect(searchLayout.fontSize).toBeGreaterThanOrEqual(16);
+  await page.getByLabel("Закрыть поиск").click();
+
+  await page.getByLabel("Фильтры").click();
+  const primaryAction = page.getByRole("button", { name: "Показать на карте" });
+  await primaryAction.scrollIntoViewIfNeeded();
+  await expect(primaryAction).toBeVisible();
+  await primaryAction.click();
+
+  await page.locator(".timeline-event").first().click();
+  const sheet = page.locator(".event-sheet");
+  await expect(sheet).toBeVisible();
+  const sheetBox = await sheet.boundingBox();
+  const viewport = page.viewportSize();
+  expect(sheetBox?.x).toBeGreaterThanOrEqual(-1);
+  expect((sheetBox?.x ?? 0) + (sheetBox?.width ?? 0)).toBeLessThanOrEqual((viewport?.width ?? 0) + 1);
+  expect((sheetBox?.y ?? 0) + (sheetBox?.height ?? 0)).toBeLessThanOrEqual((viewport?.height ?? 0) + 1);
 });

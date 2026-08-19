@@ -2,14 +2,14 @@
 
 import { create } from "zustand";
 import type { TestamentFilter } from "@/domain/types";
+import type { TimeRange } from "@/domain/timeline";
 
-type TimeWindow = { start: number; end: number };
 type SearchMode = "all" | "events" | "people" | "places" | "stories";
 
 interface BibleState {
   testamentFilter: TestamentFilter;
-  activeTime: number;
-  timeWindow: TimeWindow;
+  timeRange: TimeRange;
+  timeWindow: TimeRange;
   activeEventId?: string;
   activeStorylineId?: string;
   activeCharacterId?: string;
@@ -31,10 +31,10 @@ interface BibleState {
   storyPlaying: boolean;
   storySpeed: 0.5 | 1 | 2;
   setTestament: (filter: TestamentFilter) => void;
-  setTime: (year: number) => void;
-  setTimeWindow: (window: TimeWindow) => void;
+  setTimeRange: (range: TimeRange) => void;
+  setTimeWindow: (window: TimeRange) => void;
   setZoom: (zoom: number) => void;
-  fitTimeline: (window: TimeWindow, zoom: number, activeTime: number) => void;
+  fitTimeline: (window: TimeRange, zoom: number, range: TimeRange) => void;
   selectEvent: (id?: string) => void;
   selectStoryline: (id?: string) => void;
   selectCharacter: (id?: string) => void;
@@ -58,7 +58,7 @@ interface BibleState {
 
 export const useBibleStore = create<BibleState>((set) => ({
   testamentFilter: "ALL",
-  activeTime: -900,
+  timeRange: { start: -2200, end: 100 },
   timeWindow: { start: -2200, end: 100 },
   timelineZoom: 1,
   timelineFocused: false,
@@ -76,10 +76,10 @@ export const useBibleStore = create<BibleState>((set) => ({
   storyPlaying: false,
   storySpeed: 1,
   setTestament: (testamentFilter) => set({ testamentFilter, allPointsEnabled: false }),
-  setTime: (activeTime) => set({ activeTime, timelineFocused: true, allPointsEnabled: false }),
+  setTimeRange: (timeRange) => set({ timeRange, timelineFocused: true, allPointsEnabled: false }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setZoom: (timelineZoom) => set({ timelineZoom }),
-  fitTimeline: (timeWindow, timelineZoom, activeTime) => set({ timeWindow, timelineZoom, activeTime, timelineFocused: false }),
+  fitTimeline: (timeWindow, timelineZoom, timeRange) => set({ timeWindow, timelineZoom, timeRange, timelineFocused: false }),
   selectEvent: (activeEventId) => set({ activeEventId, sheetTab: "scripture" }),
   selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { events } from "@/data/events";
 import { storylines } from "@/data/storylines";
-import { formatBiblicalYear, getTimelineEvents, getTimelineFit, getVisibleEvents, nextBiblicalYear, sortEvents } from "@/domain/timeline";
+import { formatBiblicalYear, getTimelineEvents, getTimelineFit, getVisibleEvents, nextBiblicalYear, previousBiblicalYear, sortEvents } from "@/domain/timeline";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { validateDataset } from "@/data/repository";
 import { bibleBookById, bibleBooks } from "@/data/books";
@@ -13,6 +13,7 @@ describe("библейская хронология", () => {
   });
   it("переходит через отсутствие нулевого года", () => {
     expect(nextBiblicalYear(-1)).toBe(1);
+    expect(previousBiblicalYear(1)).toBe(-1);
     expect(formatBiblicalYear(0)).not.toContain("0 г.");
   });
   it("фильтрует окно времени и исключает relative", () => {
@@ -64,7 +65,10 @@ describe("библейская хронология", () => {
       "ascension",
     ]));
     expect(getTimelineEvents(markEvents).map((event) => event.id)).toEqual(markEvents.map((event) => event.id));
-    expect(getTimelineFit(markEvents)).toMatchObject({ zoom: 5 });
+    const fit = getTimelineFit(markEvents)!;
+    const earliest = Math.min(...markEvents.map((event) => event.chronology.startYear!));
+    const latest = Math.max(...markEvents.map((event) => event.chronology.endYear ?? event.chronology.startYear!));
+    expect(fit).toMatchObject({ zoom: 5, timeRange: { start: earliest, end: latest }, timeWindow: { start: earliest, end: latest } });
   });
   it("не добавляет на шкалу события из другой выбранной коллекции", () => {
     const abrahamEvents = events.filter((event) => event.storylineIds.includes("abraham"));
@@ -72,6 +76,8 @@ describe("библейская хронология", () => {
     expect(timelineEvents).toHaveLength(abrahamEvents.length);
     expect(timelineEvents.every((event) => event.storylineIds.includes("abraham"))).toBe(true);
     const fit = getTimelineFit(timelineEvents)!;
-    expect(timelineEvents.every((event) => event.chronology.startYear! >= fit.timeWindow.start && event.chronology.startYear! <= fit.timeWindow.end)).toBe(true);
+    expect(fit.timeRange.start).toBe(Math.min(...timelineEvents.map((event) => event.chronology.startYear!)));
+    expect(fit.timeRange.end).toBe(Math.max(...timelineEvents.map((event) => event.chronology.endYear ?? event.chronology.startYear!)));
+    expect(fit.timeWindow).toEqual(fit.timeRange);
   });
 });
