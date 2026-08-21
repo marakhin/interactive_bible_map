@@ -18,7 +18,7 @@ const auditedWaypointsByBook: Record<string, string[]> = {
   jonah: ["jonah-flight", "jonah-nineveh"],
   isaiah: ["isaiah-called", "hezekiah-deliverance"],
   jeremiah: ["jeremiah-called", "jeremiah-egypt"],
-  daniel: ["daniel-babylon", "daniel-lions"],
+  daniel: ["daniel-babylon"],
   ezra: ["return-decree", "second-temple", "ezra-arrives"],
   esther: ["esther-susa"],
   nehemiah: ["nehemiah-walls"],
