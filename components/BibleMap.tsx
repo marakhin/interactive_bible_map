@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed } from "lucide-react";
 import type * as Leaflet from "leaflet";
+import { biblicalRegions } from "@/data/biblical-regions";
 import { events } from "@/data/events";
 import biblicalRivers from "@/data/biblical-rivers.json";
 import { locationById } from "@/data/locations";
@@ -138,6 +139,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       const routePane = map.createPane("biblicalRoutePane");
       routePane.style.zIndex = "390";
       routePane.style.pointerEvents = "none";
+      const regionPane = map.createPane("biblicalRegionPane");
+      regionPane.style.zIndex = "360";
       mapRef.current = map;
       map.on("zoom", () => setMapZoom(map.getZoom()));
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
@@ -302,29 +305,48 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
 
   useEffect(() => {
     const leaflet = leafletRef.current;
+    const map = mapRef.current;
     const layer = regionLayerRef.current;
-    if (!leaflet || !layer) return;
+    if (!leaflet || !map || !layer) return;
     layer.clearLayers();
     if (!historicalRegionsEnabled) return;
 
-    const regions: Array<{ center: Leaflet.LatLngTuple; radius: number; label: string }> = [
-      { center: [29.6, 31], radius: 420_000, label: "ЕГИПЕТ" },
-      { center: [31.7, 35.25], radius: 260_000, label: "ХАНААН" },
-      { center: [33.5, 44.5], radius: 430_000, label: "МЕСОПОТАМИЯ" },
-    ];
-    for (const region of regions) {
-      leaflet.circle(region.center, {
-        radius: region.radius,
-        className: "historical-region-shape",
-        color: "#8b5c2c",
-        fillColor: "#c08f41",
-        fillOpacity: 0.08,
-        opacity: 0.55,
-        dashArray: "6 6",
-        weight: 1.5,
-        interactive: false,
-      }).bindTooltip(region.label, { permanent: true, direction: "center", className: "historical-region-label" }).addTo(layer);
+    const labelLayer = leaflet.layerGroup().addTo(layer);
+    for (const region of biblicalRegions) {
+      const polygon = leaflet.polygon(region.points, {
+        pane: "biblicalRegionPane",
+        className: "biblical-region-boundary",
+        color: region.color,
+        fillColor: region.color,
+        fillOpacity: 0.075,
+        opacity: 0.78,
+        dashArray: "6 5",
+        weight: 1.6,
+        lineCap: "round",
+        lineJoin: "round",
+        interactive: true,
+      }).bindTooltip(
+        `<strong>${region.nameRu}</strong><span>${region.scripture}</span><small>${region.periodRu}. ${region.noteRu}</small>`,
+        { sticky: true, direction: "top", className: "biblical-region-tooltip" },
+      ).addTo(layer);
+      polygon.getElement()?.setAttribute("data-region-id", region.id);
     }
+
+    const broadRegions = new Set(["egypt", "canaan", "mesopotamia"]);
+    const syncLabels = () => {
+      labelLayer.clearLayers();
+      const showBroad = map.getZoom() < 7;
+      for (const region of biblicalRegions) {
+        if (broadRegions.has(region.id) !== showBroad) continue;
+        leaflet.tooltip({ pane: "biblicalRegionPane", permanent: true, direction: "center", className: "historical-region-label", interactive: false })
+          .setLatLng(region.labelPoint)
+          .setContent(region.nameRu.toUpperCase())
+          .addTo(labelLayer);
+      }
+    };
+    map.on("zoomend", syncLabels);
+    syncLabels();
+    return () => { map.off("zoomend", syncLabels); };
   }, [historicalRegionsEnabled, mapInitialized]);
 
   useEffect(() => {
@@ -346,6 +368,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       data-label-min-zoom={AUTOMATIC_LABEL_MIN_ZOOM}
       data-route-status={!route ? "unavailable" : routesEnabled ? "visible" : "hidden"}
       data-route-kind={route?.kind}
+      data-regions-status={historicalRegionsEnabled ? "visible" : "hidden"}
     >
       <div ref={containerRef} className="real-map" aria-label="Карта OpenStreetMap с местами библейских событий" />
 
@@ -364,6 +387,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
           {!route ? "Линий нет" : `Линии: ${routesEnabled ? "вкл" : "выкл"}`}
         </button>
         <span><i className="legend-river" />Тигр и Евфрат</span>
+        {historicalRegionsEnabled && <span><i className="legend-region" />Области Писания</span>}
       </div>
 
       <button

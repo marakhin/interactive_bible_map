@@ -27,6 +27,9 @@ if (!appCode.includes("biblical-river-") || !appCode.includes("tigris") || !appC
 if (!appCode.includes("Все точки Писания") || !appCode.includes("Соединять точки маршрутом")) {
   throw new Error("The all-points view or route visibility control is missing");
 }
+if (!appCode.includes("biblical-region-boundary") || !appCode.includes("Области и земли Писания") || !appCode.includes("Галилея") || !appCode.includes("Иудея")) {
+  throw new Error("The optional Scripture region boundary layer is missing");
+}
 
 const clientFiles = await readdir(resolve("dist", "client"));
 if (clientFiles.includes("sw.js")) throw new Error("The obsolete service worker is still being published");

@@ -80,11 +80,11 @@ try {
   await page.goto(lukeUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
   await page.locator(".active-selection-title b", { hasText: "От Луки" }).waitFor({ state: "visible", timeout: 10_000 });
-  const expectedLukeSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch"];
+  const expectedLukeSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain"];
   const lukeRailIds = await page.locator(".event-rail > button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")));
   const lukeSequence = lukeRailIds.filter((eventId) => expectedLukeSequence.includes(eventId));
   if (JSON.stringify(lukeSequence) !== JSON.stringify(expectedLukeSequence)) {
-    throw new Error(`Luke 3–5 sequence is incorrect: ${lukeSequence.join(",")}`);
+    throw new Error(`Luke 3–6 sequence is incorrect: ${lukeSequence.join(",")}`);
   }
   const lukeTimelineIds = await page.locator(".timeline-event").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")));
   if (!expectedLukeSequence.every((eventId) => lukeTimelineIds.includes(eventId))) {
@@ -96,6 +96,7 @@ try {
     ["Проповедь Господа в Назарете", "Назарет", "nazareth", "Лк. 4:16–30"],
     ["Служение в Капернауме", "Капернаум", "capernaum", "Лк. 4:31–44"],
     ["Чудесный улов и призвание учеников", "море Галилейское", "sea-galilee", "Лк. 5:1–11"],
+    ["Избрание двенадцати и проповедь на ровном месте", "место проповеди по Лк. 6 не названо", "luke-sermon-area", "Лк. 6:12–49"],
   ];
   for (const [eventTitle, locationTitle, locationId, reference] of lukeLocationChecks) {
     await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
@@ -105,6 +106,38 @@ try {
     if (!eventReferences?.includes(reference)) throw new Error(`${eventTitle} is missing ${reference}: ${eventReferences}`);
   }
   await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
+
+  await page.getByRole("button", { name: "Фильтры" }).click();
+  const regionSwitch = page.locator("label.switch-row").filter({ hasText: "Области и земли Писания" }).locator('input[type="checkbox"]');
+  if (await regionSwitch.isChecked()) throw new Error("The Scripture region layer unexpectedly starts enabled");
+  await regionSwitch.check();
+  await page.getByRole("button", { name: "Показать на карте" }).click();
+  await page.locator('.biblical-region-boundary[data-region-id="galilee"]').waitFor({ state: "attached", timeout: 10_000 });
+  const regionCount = await page.locator(".biblical-region-boundary").count();
+  if (regionCount !== 10) throw new Error(`Expected 10 Scripture regions, found ${regionCount}`);
+  if (await page.locator('.biblical-region-boundary[data-region-id="judea"]').count() !== 1) throw new Error("The Judea boundary is missing");
+  await page.locator('.biblical-region-boundary[data-region-id="galilee"]').dispatchEvent("mouseover");
+  const regionTooltip = page.locator(".biblical-region-tooltip");
+  await regionTooltip.waitFor({ state: "visible", timeout: 10_000 });
+  const regionTooltipText = await regionTooltip.textContent();
+  if (!regionTooltipText?.includes("Лк. 4:14–15") || !regionTooltipText.includes("схематично")) {
+    throw new Error(`The Galilee boundary warning is incomplete: ${regionTooltipText}`);
+  }
+  await page.screenshot({ path: resolve(".luke-sermon-check.png"), fullPage: false });
+  await page.getByRole("button", { name: "Закрыть" }).click();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const zoom = Number(await page.locator(".map-stage").getAttribute("data-map-zoom"));
+    if (zoom >= 7) break;
+    await page.locator(".leaflet-control-zoom-in").click();
+    await page.waitForTimeout(300);
+  }
+  await page.locator(".historical-region-label", { hasText: "ГАЛИЛЕЯ" }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator(".historical-region-label", { hasText: "ИУДЕЯ" }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.screenshot({ path: resolve(".regions-layer-check.png"), fullPage: false });
+  await page.getByRole("button", { name: "Фильтры" }).click();
+  await regionSwitch.uncheck();
+  await page.getByRole("button", { name: "Показать на карте" }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".biblical-region-boundary").length === 0);
 
   const matthewUrl = new URL(page.url());
   matthewUrl.search = "?book=matthew";
@@ -128,7 +161,7 @@ try {
   if (!page.url().includes("view=all")) throw new Error(`All-points mode is missing from URL: ${page.url()}`);
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, lukeEvents: lukeRailIds.length, lukeSequence, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, lukeEvents: lukeRailIds.length, lukeSequence, regionCount, regionTooltipText, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }

@@ -28,6 +28,7 @@ const auditedPrimaryLocations: Record<string, string> = {
   "cana-wedding": "cana",
   "capernaum-ministry": "capernaum",
   "miraculous-catch": "sea-galilee",
+  "luke-sermon-plain": "luke-sermon-area",
   "temple-teaching": "jerusalem",
   "gethsemane": "gethsemane",
   "crucifixion": "golgotha",
@@ -66,9 +67,9 @@ describe("аудит географии событий", () => {
     expect(getPrimaryEventLocation(event, locationById)?.localizationType).toBe("unknown");
   });
 
-  it("сохраняет прямо названную последовательность мест в Лк. 3–5", () => {
+  it("сохраняет последовательность мест и честную неопределённость географии в Лк. 3–6", () => {
     const lukeEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "luke"));
-    const sequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch"];
+    const sequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain"];
     const positions = sequence.map((eventId) => lukeEvents.findIndex((event) => event.id === eventId));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
@@ -79,6 +80,11 @@ describe("аудит географии событий", () => {
     expect(getPrimaryEventLocation(eventById.get("capernaum-ministry")!, locationById)?.id).toBe("capernaum");
     expect(getPrimaryEventLocation(eventById.get("miraculous-catch")!, locationById)?.id).toBe("sea-galilee");
     expect(locationById.get("judean-wilderness")?.localizationType).toBe("unknown");
+    expect(getPrimaryEventLocation(eventById.get("luke-sermon-plain")!, locationById)).toMatchObject({
+      id: "luke-sermon-area",
+      localizationType: "unknown",
+    });
+    expect(locationById.get("luke-sermon-area")?.localizationNoteRu).toContain("не называет ни гору, ни область");
   });
 
   it("для каждой книги и сюжетной линии использует один набор событий на карте и шкале", () => {
