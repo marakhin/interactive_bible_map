@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { TestamentFilter } from "@/domain/types";
 import type { TimeRange } from "@/domain/timeline";
+import { biblicalRegions } from "@/data/biblical-regions";
 
 type SearchMode = "all" | "events" | "people" | "places" | "stories";
 
@@ -19,6 +20,7 @@ interface BibleState {
   timelineFocused: boolean;
   allPointsEnabled: boolean;
   historicalRegionsEnabled: boolean;
+  selectedHistoricalRegionIds: string[];
   biblicalRiversEnabled: boolean;
   routesEnabled: boolean;
   searchOpen: boolean;
@@ -52,6 +54,9 @@ interface BibleState {
   setStorySpeed: (value: BibleState["storySpeed"]) => void;
   showAllPoints: () => void;
   toggleRegions: () => void;
+  toggleHistoricalRegion: (id: string) => void;
+  selectAllHistoricalRegions: () => void;
+  clearHistoricalRegions: () => void;
   toggleRivers: () => void;
   toggleRoutes: () => void;
 }
@@ -64,6 +69,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   timelineFocused: false,
   allPointsEnabled: false,
   historicalRegionsEnabled: false,
+  selectedHistoricalRegionIds: biblicalRegions.map((region) => region.id),
   biblicalRiversEnabled: true,
   routesEnabled: true,
   searchOpen: false,
@@ -97,6 +103,13 @@ export const useBibleStore = create<BibleState>((set) => ({
   setStorySpeed: (storySpeed) => set({ storySpeed }),
   showAllPoints: () => set({ testamentFilter: "ALL", activeStorylineId: undefined, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: true, storyPlaying: false }),
   toggleRegions: () => set((state) => ({ historicalRegionsEnabled: !state.historicalRegionsEnabled })),
+  toggleHistoricalRegion: (id) => set((state) => ({
+    selectedHistoricalRegionIds: state.selectedHistoricalRegionIds.includes(id)
+      ? state.selectedHistoricalRegionIds.filter((regionId) => regionId !== id)
+      : [...state.selectedHistoricalRegionIds, id],
+  })),
+  selectAllHistoricalRegions: () => set({ selectedHistoricalRegionIds: biblicalRegions.map((region) => region.id) }),
+  clearHistoricalRegions: () => set({ selectedHistoricalRegionIds: [] }),
   toggleRivers: () => set((state) => ({ biblicalRiversEnabled: !state.biblicalRiversEnabled })),
   toggleRoutes: () => set((state) => ({ routesEnabled: !state.routesEnabled })),
 }));

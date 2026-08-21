@@ -53,10 +53,16 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const activeCharacterId = useBibleStore((state) => state.activeCharacterId);
   const activeBookId = useBibleStore((state) => state.activeBookId);
   const historicalRegionsEnabled = useBibleStore((state) => state.historicalRegionsEnabled);
+  const selectedHistoricalRegionIds = useBibleStore((state) => state.selectedHistoricalRegionIds);
   const biblicalRiversEnabled = useBibleStore((state) => state.biblicalRiversEnabled);
   const routesEnabled = useBibleStore((state) => state.routesEnabled);
   const toggleRoutes = useBibleStore((state) => state.toggleRoutes);
   const selectEvent = useBibleStore((state) => state.selectEvent);
+
+  const visibleHistoricalRegions = useMemo(() => {
+    const selected = new Set(selectedHistoricalRegionIds);
+    return biblicalRegions.filter((region) => selected.has(region.id));
+  }, [selectedHistoricalRegionIds]);
 
   const markers = useMemo<LocatedMarker[]>(() => {
     const grouped = new Map<string, LocatedMarker>();
@@ -312,7 +318,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     if (!historicalRegionsEnabled) return;
 
     const labelLayer = leaflet.layerGroup().addTo(layer);
-    for (const region of biblicalRegions) {
+    for (const region of visibleHistoricalRegions) {
       const polygon = leaflet.polygon(region.points, {
         pane: "biblicalRegionPane",
         className: "biblical-region-boundary",
@@ -336,7 +342,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     const syncLabels = () => {
       labelLayer.clearLayers();
       const showBroad = map.getZoom() < 7;
-      for (const region of biblicalRegions) {
+      for (const region of visibleHistoricalRegions) {
         if (broadRegions.has(region.id) !== showBroad) continue;
         leaflet.tooltip({ pane: "biblicalRegionPane", permanent: true, direction: "center", className: "historical-region-label", interactive: false })
           .setLatLng(region.labelPoint)
@@ -347,7 +353,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     map.on("zoomend", syncLabels);
     syncLabels();
     return () => { map.off("zoomend", syncLabels); };
-  }, [historicalRegionsEnabled, mapInitialized]);
+  }, [historicalRegionsEnabled, mapInitialized, visibleHistoricalRegions]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -369,6 +375,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       data-route-status={!route ? "unavailable" : routesEnabled ? "visible" : "hidden"}
       data-route-kind={route?.kind}
       data-regions-status={historicalRegionsEnabled ? "visible" : "hidden"}
+      data-region-selection-count={visibleHistoricalRegions.length}
     >
       <div ref={containerRef} className="real-map" aria-label="Карта OpenStreetMap с местами библейских событий" />
 
@@ -387,7 +394,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
           {!route ? "Линий нет" : `Линии: ${routesEnabled ? "вкл" : "выкл"}`}
         </button>
         <span><i className="legend-river" />Тигр и Евфрат</span>
-        {historicalRegionsEnabled && <span><i className="legend-region" />Области Писания</span>}
+        {historicalRegionsEnabled && <span><i className="legend-region" />Области: {visibleHistoricalRegions.length}/{biblicalRegions.length}</span>}
       </div>
 
       <button

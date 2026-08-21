@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { biblicalRegions } from "@/data/biblical-regions";
 import { useBibleStore } from "@/store/useBibleStore";
 
 describe("режимы отображения карты", () => {
@@ -12,6 +13,8 @@ describe("режимы отображения карты", () => {
       activeEventId: undefined,
       timelineFocused: false,
       allPointsEnabled: false,
+      historicalRegionsEnabled: false,
+      selectedHistoricalRegionIds: biblicalRegions.map((region) => region.id),
       routesEnabled: true,
       storyPlaying: false,
     });
@@ -41,5 +44,18 @@ describe("режимы отображения карты", () => {
     expect(state.timeRange).toEqual({ start: -600, end: -500 });
     expect(state.timelineFocused).toBe(true);
     expect(state.allPointsEnabled).toBe(false);
+  });
+
+  it("позволяет выбирать отдельные области независимо от общего переключателя слоя", () => {
+    useBibleStore.getState().toggleRegions();
+    useBibleStore.getState().clearHistoricalRegions();
+    useBibleStore.getState().toggleHistoricalRegion("galilee");
+    let state = useBibleStore.getState();
+    expect(state.historicalRegionsEnabled).toBe(true);
+    expect(state.selectedHistoricalRegionIds).toEqual(["galilee"]);
+
+    useBibleStore.getState().selectAllHistoricalRegions();
+    state = useBibleStore.getState();
+    expect(state.selectedHistoricalRegionIds).toHaveLength(biblicalRegions.length);
   });
 });
