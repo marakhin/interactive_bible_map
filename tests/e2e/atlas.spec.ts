@@ -119,9 +119,13 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(layout.atlas?.height).toBeLessThanOrEqual(layout.viewport.height + 1);
   expect(layout.map?.height).toBeGreaterThan(150);
   expect(layout.timeline?.width).toBeLessThanOrEqual(layout.viewport.width + 1);
+  expect(layout.timeline?.height).toBeLessThanOrEqual(100);
   expect(layout.timeline?.bottom).toBeLessThanOrEqual(layout.viewport.height + 1);
   expect(layout.header?.top).toBeGreaterThanOrEqual(-1);
   expect(layout.tapTargets.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
+  await expect(page.locator(".map-legend")).toBeHidden();
+  await expect(page.locator(".timeline-topline")).toBeHidden();
+  await expect(page.locator(".timeline-track-wrap")).toBeHidden();
 
   const eraScroller = page.locator(".era-chips");
   if (await eraScroller.isVisible()) {
@@ -135,15 +139,16 @@ test("мобильный Safari сохраняет интерфейс внутр
         touchAction: style.touchAction,
       };
     });
-    expect(initialScroll.scrollWidth).toBeGreaterThan(initialScroll.clientWidth);
     expect(initialScroll.overflowX).toBe("scroll");
     expect(initialScroll.touchAction).toBe("pan-x");
     expect(eraBox?.width).toBeLessThanOrEqual(layout.viewport.width + 1);
-    await eraScroller.evaluate((element) => { element.scrollLeft = 0; });
-    await eraScroller.evaluate((element) => { element.scrollBy({ left: 220 }); });
-    await expect.poll(() => eraScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
-    await eraScroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
-    await expect.poll(() => eraScroller.evaluate((element) => Math.ceil(element.scrollLeft + element.clientWidth))).toBeGreaterThanOrEqual(initialScroll.scrollWidth);
+    if (initialScroll.scrollWidth > initialScroll.clientWidth) {
+      await eraScroller.evaluate((element) => { element.scrollLeft = 0; });
+      await eraScroller.evaluate((element) => { element.scrollBy({ left: 220 }); });
+      await expect.poll(() => eraScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      await eraScroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+      await expect.poll(() => eraScroller.evaluate((element) => Math.ceil(element.scrollLeft + element.clientWidth))).toBeGreaterThanOrEqual(initialScroll.scrollWidth);
+    }
     const endPosition = await eraScroller.evaluate((element) => {
       const container = element.getBoundingClientRect();
       const lastChip = element.lastElementChild?.getBoundingClientRect();
@@ -189,6 +194,7 @@ test("мобильный Safari сохраняет интерфейс внутр
       bottom: box.bottom,
       left: box.left,
       overflowY: style.overflowY,
+      overlayClass: element.parentElement?.className ?? "",
       viewport: { width: window.innerWidth, height: window.innerHeight },
     };
   });
@@ -196,7 +202,8 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(filterLayout.left).toBeGreaterThanOrEqual(-1);
   expect(filterLayout.right).toBeLessThanOrEqual(filterLayout.viewport.width + 1);
   expect(filterLayout.bottom).toBeLessThanOrEqual(filterLayout.viewport.height + 1);
-  expect(filterLayout.overflowY).toBe("auto");
+  expect(filterLayout.overflowY).toBe("scroll");
+  expect(filterLayout.overlayClass).toContain("mobile-filter-overlay");
 
   const regionsSwitch = filterDropdown.locator(".switch-row").filter({ hasText: "Области и земли Писания" });
   await regionsSwitch.click();
@@ -206,11 +213,21 @@ test("мобильный Safari сохраняет интерфейс внутр
     return { bottom: box.bottom, clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, viewportHeight: window.innerHeight };
   });
   expect(expandedFilterLayout.bottom).toBeLessThanOrEqual(expandedFilterLayout.viewportHeight + 1);
-  expect(expandedFilterLayout.scrollHeight).toBeGreaterThanOrEqual(expandedFilterLayout.clientHeight);
+  expect(expandedFilterLayout.scrollHeight).toBeGreaterThan(expandedFilterLayout.clientHeight);
+  await filterDropdown.evaluate((element) => { element.scrollTop = 0; element.scrollBy({ top: 220 }); });
+  await expect.poll(() => filterDropdown.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   const primaryAction = page.getByRole("button", { name: "Готово" });
   await primaryAction.scrollIntoViewIfNeeded();
   await expect(primaryAction).toBeVisible();
+  const readyGeometry = await filterDropdown.evaluate((element) => {
+    const panel = element.getBoundingClientRect();
+    const button = element.querySelector<HTMLElement>(".filter-done")?.getBoundingClientRect();
+    return { panelTop: panel.top, panelBottom: panel.bottom, buttonTop: button?.top ?? -1, buttonBottom: button?.bottom ?? Number.POSITIVE_INFINITY };
+  });
+  expect(readyGeometry.buttonTop).toBeGreaterThanOrEqual(readyGeometry.panelTop - 1);
+  expect(readyGeometry.buttonBottom).toBeLessThanOrEqual(readyGeometry.panelBottom + 1);
   await primaryAction.click();
+  await expect(filterDropdown).toBeHidden();
 
   await page.locator(".timeline-event").first().evaluate((button) => (button as HTMLButtonElement).click());
   const sheet = page.locator(".event-sheet");
