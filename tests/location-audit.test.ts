@@ -22,8 +22,12 @@ const auditedPrimaryLocations: Record<string, string> = {
   "jerusalem-falls": "jerusalem",
   "flight-egypt": "egypt",
   "baptism-christ": "jordan",
+  "temptation-christ": "jerusalem",
+  "return-galilee": "galilee",
+  "nazareth-synagogue": "nazareth",
   "cana-wedding": "cana",
   "capernaum-ministry": "capernaum",
+  "miraculous-catch": "sea-galilee",
   "temple-teaching": "jerusalem",
   "gethsemane": "gethsemane",
   "crucifixion": "golgotha",
@@ -60,6 +64,21 @@ describe("аудит географии событий", () => {
     const event = eventById.get("galilee-appearance")!;
     expect(event.scriptureReferences.map((reference) => reference.displayRu)).toEqual(["Мф. 28:16–20", "Мк. 16:7"]);
     expect(getPrimaryEventLocation(event, locationById)?.localizationType).toBe("unknown");
+  });
+
+  it("сохраняет прямо названную последовательность мест в Лк. 3–5", () => {
+    const lukeEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "luke"));
+    const sequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch"];
+    const positions = sequence.map((eventId) => lukeEvents.findIndex((event) => event.id === eventId));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(getPrimaryEventLocation(eventById.get("temptation-christ")!, locationById)?.id).toBe("jerusalem");
+    expect(eventById.get("temptation-christ")?.locations.map((location) => location.locationId)).toEqual(["jordan", "judean-wilderness", "jerusalem"]);
+    expect(getPrimaryEventLocation(eventById.get("return-galilee")!, locationById)?.id).toBe("galilee");
+    expect(getPrimaryEventLocation(eventById.get("nazareth-synagogue")!, locationById)?.id).toBe("nazareth");
+    expect(getPrimaryEventLocation(eventById.get("capernaum-ministry")!, locationById)?.id).toBe("capernaum");
+    expect(getPrimaryEventLocation(eventById.get("miraculous-catch")!, locationById)?.id).toBe("sea-galilee");
+    expect(locationById.get("judean-wilderness")?.localizationType).toBe("unknown");
   });
 
   it("для каждой книги и сюжетной линии использует один набор событий на карте и шкале", () => {

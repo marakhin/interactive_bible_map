@@ -29,6 +29,20 @@ describe("локальный Синодальный перевод", () => {
     expect(passages.every((passage) => passage.verses.length > 0)).toBe(true);
   });
 
+  it("покрывает последовательность Лк. 4–5 прямым Синодальным текстом", () => {
+    const temptation = events.find((event) => event.id === "temptation-christ")!;
+    const returnToGalilee = events.find((event) => event.id === "return-galilee")!;
+    const nazareth = events.find((event) => event.id === "nazareth-synagogue")!;
+    const miraculousCatch = events.find((event) => event.id === "miraculous-catch")!;
+    const temptationText = getSynodalPassages(temptation.scriptureReferences[0])[0].verses;
+    expect(temptationText.find((verse) => verse.verse === 9)?.text).toContain("Иерусалим");
+    expect(getSynodalPassages(returnToGalilee.scriptureReferences[0])[0].verses[0].text).toContain("в Галилею");
+    expect(getSynodalPassages(nazareth.scriptureReferences[0])[0].verses[0].text).toContain("пришел в Назарет");
+    const catchText = getSynodalPassages(miraculousCatch.scriptureReferences[0])[0].verses;
+    expect(catchText[0].text).toContain("озера Геннисаретского");
+    expect(catchText.at(-1)?.text).toContain("оставили все и последовали за Ним");
+  });
+
   it("покрывает прямым текстом все события", () => {
     for (const event of events) {
       for (const reference of event.scriptureReferences) {

@@ -70,6 +70,13 @@ describe("библейская хронология", () => {
     const latest = Math.max(...markEvents.map((event) => event.chronology.endYear ?? event.chronology.startYear!));
     expect(fit).toMatchObject({ zoom: 5, timeRange: { start: earliest, end: latest }, timeWindow: { start: earliest, end: latest } });
   });
+  it("сохраняет порядок событий четвертой главы Евангелия от Луки", () => {
+    const lukeEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "luke"));
+    const expectedSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch"];
+    const actualSequence = lukeEvents.map((event) => event.id).filter((eventId) => expectedSequence.includes(eventId));
+    expect(actualSequence).toEqual(expectedSequence);
+    expect(bibleBookById.get("luke")?.eventCount).toBe(lukeEvents.length);
+  });
   it("не добавляет на шкалу события из другой выбранной коллекции", () => {
     const abrahamEvents = events.filter((event) => event.storylineIds.includes("abraham"));
     const timelineEvents = getTimelineEvents(abrahamEvents);
