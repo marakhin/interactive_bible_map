@@ -144,6 +144,26 @@ try {
   }
   await page.locator(".historical-region-label", { hasText: "ГАЛИЛЕЯ" }).waitFor({ state: "visible", timeout: 10_000 });
   await page.locator(".historical-region-label", { hasText: "ИУДЕЯ" }).waitFor({ state: "visible", timeout: 10_000 });
+  const galileeBoundaryStyle = await page.locator('.biblical-region-boundary[data-region-id="galilee"]').evaluate((element) => ({
+    fillOpacity: Number(element.getAttribute("fill-opacity")),
+    strokeWidth: Number(element.getAttribute("stroke-width")),
+  }));
+  if (galileeBoundaryStyle.fillOpacity < 0.16 || galileeBoundaryStyle.strokeWidth < 2) {
+    throw new Error(`The region layer is still too faint: ${JSON.stringify(galileeBoundaryStyle)}`);
+  }
+  await page.locator('.historical-region-source-marker[data-region-source-id="galilee"] .historical-region-info').click();
+  const sourcePopup = page.locator(".biblical-region-source-popup");
+  await sourcePopup.waitFor({ state: "visible", timeout: 10_000 });
+  const regionSourceText = await sourcePopup.textContent();
+  if (!regionSourceText?.includes("Основа контура") || !regionSourceText.includes("Шеперд") || !regionSourceText.includes("Pleiades") || !regionSourceText.includes("схематично")) {
+    throw new Error(`The Galilee source note is incomplete: ${regionSourceText}`);
+  }
+  const regionSourceUrls = await sourcePopup.locator("a").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  if (!regionSourceUrls.some((url) => url?.includes("lib.utexas.edu")) || !regionSourceUrls.some((url) => url?.includes("loc.gov"))) {
+    throw new Error(`The Galilee source links are incomplete: ${regionSourceUrls.join(",")}`);
+  }
+  await page.screenshot({ path: resolve(".regions-source-check.png"), fullPage: false });
+  await sourcePopup.locator(".leaflet-popup-close-button").click();
   await page.screenshot({ path: resolve(".regions-layer-check.png"), fullPage: false });
   await page.getByRole("button", { name: "Фильтры" }).click();
   await regionSwitch.uncheck();
@@ -170,9 +190,20 @@ try {
   if (routes !== 0) throw new Error("All-points mode unexpectedly shows a storyline route");
   if (!(await page.getByRole('button', { name: 'Для текущего режима маршрут недоступен' }).isDisabled())) throw new Error("The route legend incorrectly reports an active route in all-points mode");
   if (!page.url().includes("view=all")) throw new Error(`All-points mode is missing from URL: ${page.url()}`);
+  const expectedPeople = [
+    ["isaac", "Исаак"],
+    ["jacob", "Иаков (Израиль)"],
+    ["joseph", "Иосиф (сын Израиля)"],
+    ["peter", "Апостол Пётр"],
+  ];
+  for (const [characterId, nameRu] of expectedPeople) {
+    const personButton = page.locator(`.people-chips [data-character-id="${characterId}"]`);
+    await personButton.waitFor({ state: "visible", timeout: 10_000 });
+    if ((await personButton.textContent())?.trim() !== nameRu) throw new Error(`Missing Scripture person label: ${characterId}`);
+  }
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, lukeEvents: lukeRailIds.length, lukeSequence, regionCount, regionTooltipText, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, lukeEvents: lukeRailIds.length, lukeSequence, regionCount, regionTooltipText, regionSourceText, regionSourceUrls, galileeBoundaryStyle, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, people: expectedPeople.map(([, nameRu]) => nameRu), allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }

@@ -23,7 +23,15 @@ describe("учебный слой земель и областей Писани�
       expect(region.scripture, region.id).toMatch(/\d/);
       expect(region.noteRu, region.id).toContain("схематично");
       expect(region.noteRu, region.id).toContain("не задаёт её географический контур");
-      expect(region.points.length, region.id).toBeGreaterThanOrEqual(3);
+      expect(region.sourceNoteRu.length, region.id).toBeGreaterThan(80);
+      expect(region.sources.length, region.id).toBeGreaterThanOrEqual(2);
+      expect(region.points.length, region.id).toBeGreaterThanOrEqual(8);
+      for (const source of region.sources) {
+        expect(source.titleRu.length, `${region.id}: название источника`).toBeGreaterThan(5);
+        expect(source.roleRu.length, `${region.id}: роль источника`).toBeGreaterThan(10);
+        expect(source.licenseRu.length, `${region.id}: лицензия источника`).toBeGreaterThan(3);
+        expect(source.url, `${region.id}: адрес источника`).toMatch(/^https:\/\//);
+      }
       for (const [latitude, longitude] of region.points) {
         expect(latitude, `${region.id}: широта`).toBeGreaterThanOrEqual(-90);
         expect(latitude, `${region.id}: широта`).toBeLessThanOrEqual(90);
@@ -31,5 +39,11 @@ describe("учебный слой земель и областей Писани�
         expect(longitude, `${region.id}: долгота`).toBeLessThanOrEqual(180);
       }
     }
+  });
+
+  it("отдельно объясняет сложные редакционные решения о границах", () => {
+    expect(biblicalRegionById.get("canaan")?.scripture).toContain("Чис. 34");
+    expect(biblicalRegionById.get("egypt")?.sourceNoteRu).toContain("дельте и долине Нила");
+    expect(biblicalRegionById.get("decapolis")?.sourceNoteRu).toContain("не было областью с одной устойчивой административной границей");
   });
 });

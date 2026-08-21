@@ -3,8 +3,8 @@ import type { BibleCharacter } from "@/domain/types";
 export const characters: BibleCharacter[] = [
   { id: "abraham", slug: "abraham", nameRu: "Авраам", descriptionRu: "Патриарх, призванный Богом выйти в землю, которую Он укажет.", testament: "OT" },
   { id: "isaac", slug: "isaac", nameRu: "Исаак", descriptionRu: "Сын Авраама и Сарры, наследник обетования.", testament: "OT" },
-  { id: "jacob", slug: "jacob", nameRu: "Иаков", descriptionRu: "Патриарх, получивший имя Израиль.", testament: "OT" },
-  { id: "joseph", slug: "joseph", nameRu: "Иосиф", descriptionRu: "Сын Иакова, через которого его семья была сохранена в Египте.", testament: "OT" },
+  { id: "jacob", slug: "jacob", nameRu: "Иаков (Израиль)", descriptionRu: "Патриарх Иаков, получивший от Бога имя Израиль.", testament: "OT" },
+  { id: "joseph", slug: "joseph", nameRu: "Иосиф (сын Израиля)", descriptionRu: "Сын Иакова (Израиля), через которого его семья была сохранена в Египте.", testament: "OT" },
   { id: "moses", slug: "moses", nameRu: "Моисей", descriptionRu: "Пророк и вождь исхода Израиля из Египта.", testament: "OT" },
   { id: "joshua", slug: "joshua", nameRu: "Иисус Навин", descriptionRu: "Преемник Моисея, введший Израиль через Иордан.", testament: "OT" },
   { id: "gideon", slug: "gideon", nameRu: "Гедеон", descriptionRu: "Судия Израиля, призванный освободить народ от Мадианитян.", testament: "OT" },

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed } from "lucide-react";
 import type * as Leaflet from "leaflet";
-import { biblicalRegions } from "@/data/biblical-regions";
+import { biblicalRegions, type BiblicalRegion } from "@/data/biblical-regions";
 import { events } from "@/data/events";
 import biblicalRivers from "@/data/biblical-rivers.json";
 import { locationById } from "@/data/locations";
@@ -33,6 +33,49 @@ type LocatedMarker = {
 function coordinates(location: BibleLocation | undefined): Leaflet.LatLngTuple | undefined {
   if (!location || location.latitude === undefined || location.longitude === undefined) return undefined;
   return [location.latitude, location.longitude];
+}
+
+function createRegionLabel(region: BiblicalRegion) {
+  const label = document.createElement("span");
+  label.className = "historical-region-label";
+  const name = document.createElement("span");
+  name.textContent = region.nameRu.toUpperCase();
+  const info = document.createElement("b");
+  info.className = "historical-region-info";
+  info.setAttribute("aria-hidden", "true");
+  info.textContent = "i";
+  label.append(name, info);
+  return label;
+}
+
+function createRegionSourcePopup(region: BiblicalRegion) {
+  const content = document.createElement("div");
+  content.className = "region-source-popup-content";
+  const eyebrow = document.createElement("span");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "Основа контура";
+  const heading = document.createElement("strong");
+  heading.textContent = region.nameRu;
+  const explanation = document.createElement("p");
+  explanation.textContent = region.sourceNoteRu;
+  const list = document.createElement("ul");
+  for (const source of region.sources) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = source.titleRu;
+    const role = document.createElement("small");
+    role.textContent = `${source.roleRu} · ${source.licenseRu}`;
+    item.append(link, role);
+    list.append(item);
+  }
+  const warning = document.createElement("small");
+  warning.className = "region-source-warning";
+  warning.textContent = region.noteRu;
+  content.append(eyebrow, heading, explanation, list, warning);
+  return content;
 }
 
 export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps) {
@@ -148,6 +191,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       routePane.style.pointerEvents = "none";
       const regionPane = map.createPane("biblicalRegionPane");
       regionPane.style.zIndex = "360";
+      const regionLabelPane = map.createPane("biblicalRegionLabelPane");
+      regionLabelPane.style.zIndex = "625";
       mapRef.current = map;
       map.on("zoom", () => setMapZoom(map.getZoom()));
       markerLayerRef.current = leaflet.layerGroup().addTo(map);
@@ -325,15 +370,15 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         className: "biblical-region-boundary",
         color: region.color,
         fillColor: region.color,
-        fillOpacity: 0.075,
-        opacity: 0.78,
-        dashArray: "6 5",
-        weight: 1.6,
+        fillOpacity: 0.18,
+        opacity: 0.94,
+        dashArray: "5 4",
+        weight: 2.2,
         lineCap: "round",
         lineJoin: "round",
         interactive: true,
       }).bindTooltip(
-        `<strong>${region.nameRu}</strong><span>${region.scripture}</span><small>${region.periodRu}. ${region.noteRu}</small>`,
+        `<strong>${region.nameRu}</strong><span>${region.scripture}</span><small>${region.periodRu}. ${region.noteRu} Нажмите значок i рядом с названием, чтобы открыть источники.</small>`,
         { sticky: true, direction: "top", className: "biblical-region-tooltip" },
       ).addTo(layer);
       polygon.getElement()?.setAttribute("data-region-id", region.id);
@@ -345,10 +390,21 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       const showBroad = map.getZoom() < 7;
       for (const region of visibleHistoricalRegions) {
         if (broadRegions.has(region.id) !== showBroad) continue;
-        leaflet.tooltip({ pane: "biblicalRegionPane", permanent: true, direction: "center", className: "historical-region-label", interactive: false })
-          .setLatLng(region.labelPoint)
-          .setContent(region.nameRu.toUpperCase())
-          .addTo(labelLayer);
+        const sourceMarker = leaflet.marker(region.labelPoint, {
+          pane: "biblicalRegionLabelPane",
+          title: `Источники контура: ${region.nameRu}`,
+          keyboard: true,
+          icon: leaflet.divIcon({
+            className: "historical-region-source-marker",
+            html: createRegionLabel(region),
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+          }),
+        }).bindPopup(createRegionSourcePopup(region), {
+          className: "biblical-region-source-popup",
+          maxWidth: 340,
+        }).addTo(labelLayer);
+        sourceMarker.getElement()?.setAttribute("data-region-source-id", region.id);
       }
     };
     map.on("zoomend", syncLabels);

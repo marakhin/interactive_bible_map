@@ -30,6 +30,12 @@ if (!appCode.includes("Все точки Писания") || !appCode.includes("
 if (!appCode.includes("biblical-region-boundary") || !appCode.includes("Области и земли Писания") || !appCode.includes("Галилея") || !appCode.includes("Иудея")) {
   throw new Error("The optional Scripture region boundary layer is missing");
 }
+if (!appCode.includes("historical-region-source-marker") || !appCode.includes("Reference Map of Ancient Palestine") || !appCode.includes("Pleiades Gazetteer")) {
+  throw new Error("The Scripture region source notes are missing");
+}
+if (!appCode.includes("Апостол Пётр") || !appCode.includes("Иаков (Израиль)") || !appCode.includes("Иосиф (сын Израиля)")) {
+  throw new Error("The requested Scripture people are missing from the production client");
+}
 
 const clientFiles = await readdir(resolve("dist", "client"));
 if (clientFiles.includes("sw.js")) throw new Error("The obsolete service worker is still being published");

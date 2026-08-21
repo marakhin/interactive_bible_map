@@ -5,6 +5,7 @@ import { formatBiblicalYear, getTimelineEvents, getTimelineFit, getVisibleEvents
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { validateDataset } from "@/data/repository";
 import { bibleBookById, bibleBooks } from "@/data/books";
+import { characters } from "@/data/characters";
 
 describe("библейская хронология", () => {
   it("форматирует годы до и по Рождестве Христовом", () => {
@@ -39,6 +40,18 @@ describe("библейская хронология", () => {
   });
   it("каждое событие имеет ссылку на Писание", () => {
     expect(events.every((event) => event.scriptureReferences.length > 0)).toBe(true);
+  });
+  it("содержит Исаака, Иакова, Иосифа и апостола Петра и связанные с ними события", () => {
+    const expectedPeople = [
+      ["isaac", "Исаак"],
+      ["jacob", "Иаков (Израиль)"],
+      ["joseph", "Иосиф (сын Израиля)"],
+      ["peter", "Апостол Пётр"],
+    ] as const;
+    for (const [id, nameRu] of expectedPeople) {
+      expect(characters.find((character) => character.id === id)?.nameRu).toBe(nameRu);
+      expect(events.filter((event) => event.characters.includes(id)).length, id).toBeGreaterThanOrEqual(3);
+    }
   });
   it("позволяет изучать книгу Исход по связанным событиям и местам", () => {
     const exodus = bibleBookById.get("exodus")!;

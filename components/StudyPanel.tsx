@@ -10,6 +10,8 @@ import { storylines } from "@/data/storylines";
 import { track } from "@/lib/analytics";
 import { useBibleStore } from "@/store/useBibleStore";
 
+const featuredPersonIds = ["abraham", "isaac", "jacob", "joseph", "moses", "david", "theotokos", "jesus-christ", "peter", "paul"];
+
 export function StudyPanel() {
   const open = useBibleStore((state) => state.studyOpen);
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
@@ -69,7 +71,7 @@ export function StudyPanel() {
         <button className="featured-study" onClick={() => selectStory("abraham")}><span><Sparkles size={19} /></span><div><small>Рекомендуем начать здесь</small><b>Путь Авраама</b><p>Ур → Харран → Сихем → Вефиль → Хеврон</p></div><ChevronRight /></button>
         <section><h3><Route size={17} />Сюжетные линии</h3><div className="study-list">{storylines.filter((item) => item.importance === 5).map((story) => <button key={story.id} onClick={() => selectStory(story.id)}><span className={`story-dot ${story.testament.toLowerCase()}`} style={{ backgroundColor: story.color }} /><div><b>{story.titleRu}</b><small>{story.eventIds.length} событий · {story.testament === "OT" ? "ВЗ" : "НЗ"}</small></div><ChevronRight size={17} /></button>)}</div></section>
         <section><h3><BookMarked size={17} />Книги Писания</h3><div className="study-list book-study-list">{bibleBooks.map((book) => <button key={book.id} data-book-id={book.id} onClick={() => selectBookStudy(book.id)}><BookMarked size={15} className={book.testament.toLowerCase()} /><div><b>{book.titleRu}</b><small>{book.placeCount} мест · {book.eventCount} событий · {book.testament === "OT" ? "ВЗ" : "НЗ"}</small></div><ChevronRight size={17} /></button>)}</div></section>
-        <section><h3><CircleUserRound size={17} />Люди Писания</h3><div className="people-chips">{characters.filter((item) => ["abraham", "moses", "david", "theotokos", "jesus-christ", "paul"].includes(item.id)).map((person) => <button key={person.id} onClick={() => { selectCharacter(person.id); setOpen(false); }}>{person.nameRu}</button>)}</div></section>
+        <section><h3><CircleUserRound size={17} />Люди Писания</h3><div className="people-chips">{characters.filter((item) => featuredPersonIds.includes(item.id)).map((person) => <button key={person.id} data-character-id={person.id} onClick={() => { selectCharacter(person.id); setOpen(false); }}>{person.nameRu}</button>)}</div></section>
         {lastEvent && <section><h3><History size={17} />Продолжить изучение</h3><button className="continue-card" onClick={() => { selectEvent(lastEvent.id); setOpen(false); }}><div><b>{lastEvent.titleRu}</b><small>{lastEvent.scriptureReferences[0].displayRu}</small></div><ChevronRight size={17} /></button></section>}
         {bookmarkedEvents.length > 0 && <section><h3><Bookmark size={17} />Закладки</h3><div className="study-list">{bookmarkedEvents.slice(0, 5).map((event) => <button key={event.id} onClick={() => { selectEvent(event.id); setOpen(false); }}><Bookmark size={14} /><div><b>{event.titleRu}</b><small>{event.scriptureReferences[0].displayRu}</small></div><ChevronRight size={17} /></button>)}</div></section>}
         <section className="study-note"><BookMarked size={20} /><p><b>Карта следует Писанию.</b><br />Даты и локализации, которых нет в тексте, отмечены как приблизительные или спорные.</p></section>
