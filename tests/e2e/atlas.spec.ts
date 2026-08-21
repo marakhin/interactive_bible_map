@@ -37,7 +37,7 @@ test("поиск Иерусалима открывает режим места",
 test("фильтр Нового Завета меняет состояние URL", async ({ page }) => {
   await page.getByLabel("Фильтры").click();
   await page.getByRole("button", { name: "Новый" }).click();
-  await page.getByRole("button", { name: "Показать на карте" }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
   await expect(page).toHaveURL(/testament=NT/);
 });
 
@@ -138,7 +138,8 @@ test("мобильный Safari сохраняет интерфейс внутр
   await page.getByLabel("Закрыть поиск").click();
 
   await page.getByLabel("Фильтры").click();
-  const primaryAction = page.getByRole("button", { name: "Показать на карте" });
+  await expect(page.locator(".map-filter-dropdown")).toBeVisible();
+  const primaryAction = page.getByRole("button", { name: "Готово" });
   await primaryAction.scrollIntoViewIfNeeded();
   await expect(primaryAction).toBeVisible();
   await primaryAction.click();

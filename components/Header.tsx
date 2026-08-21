@@ -1,12 +1,11 @@
 "use client";
 
-import { BookOpenText, Compass, Filter, Info, Menu, Search, X } from "lucide-react";
+import { BookOpenText, Compass, Info, Menu, Search, X } from "lucide-react";
 import { useBibleStore } from "@/store/useBibleStore";
 
 export function Header({ onAbout }: { onAbout: () => void }) {
   const setSearchOpen = useBibleStore((state) => state.setSearchOpen);
   const setStudyOpen = useBibleStore((state) => state.setStudyOpen);
-  const setFiltersOpen = useBibleStore((state) => state.setFiltersOpen);
   const studyOpen = useBibleStore((state) => state.studyOpen);
 
   return (
@@ -20,7 +19,6 @@ export function Header({ onAbout }: { onAbout: () => void }) {
       <div className="header-actions">
         <button className="search-button" onClick={() => setSearchOpen(true)}><Search size={18} /><span>Найти событие, место, человека…</span><kbd>⌘ K</kbd></button>
         <button className="icon-button" aria-label="Поиск" onClick={() => setSearchOpen(true)}><Search size={20} /></button>
-        <button className="icon-button" aria-label="Фильтры" onClick={() => setFiltersOpen(true)}><Filter size={20} /></button>
       </div>
     </header>
   );

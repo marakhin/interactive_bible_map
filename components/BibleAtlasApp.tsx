@@ -12,7 +12,6 @@ import { useBibleStore } from "@/store/useBibleStore";
 import { AboutPanel } from "./AboutPanel";
 import { BibleMap } from "./BibleMap";
 import { EventSheet } from "./EventSheet";
-import { FiltersPanel } from "./FiltersPanel";
 import { Header } from "./Header";
 import { SearchOverlay } from "./SearchOverlay";
 import { StudyPanel } from "./StudyPanel";
@@ -118,7 +117,7 @@ export default function BibleAtlasApp() {
     <main className="atlas-app" data-app-ready={ready ? "true" : "false"}>
       <Header onAbout={() => setAboutOpen(true)} />
       <div className="workspace"><StudyPanel /><div className="map-column"><BibleMap visibleEvents={visibleEvents} fitAllPoints={allPointsEnabled} /><Timeline events={collectionEvents} selectionKey={timelineSelectionKey} /></div></div>
-      <EventSheet /><SearchOverlay /><FiltersPanel /><AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <EventSheet /><SearchOverlay /><AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
       {onboarding > 0 && <div className="onboarding"><div className="onboarding-card"><span>{onboarding}/3</span>{onboarding === 1 && <><div className="onboarding-art timeline-art"><i /><i /><i /></div><h2>Путешествуйте по истории</h2><p>Двигайте временную шкалу, чтобы видеть события Писания в их последовательности.</p></>}{onboarding === 2 && <><div className="onboarding-art marker-art"><i /></div><h2>Открывайте события</h2><p>Нажмите на маркер или подпись места, чтобы прочитать соответствующий текст Священного Писания.</p></>}{onboarding === 3 && <><div className="onboarding-art route-art"><i /></div><h2>Следуйте за повествованием</h2><p>Выберите человека или сюжет, чтобы увидеть его путь на карте.</p></>}<div className="onboarding-actions"><button onClick={closeOnboarding}>Пропустить</button><button onClick={() => onboarding < 3 ? setOnboarding(onboarding + 1) : closeOnboarding()}>{onboarding < 3 ? "Далее" : "Начать"}<ArrowRight size={17} /></button></div></div></div>}
     </main>
   );

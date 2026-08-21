@@ -12,6 +12,7 @@ import { getPrimaryEventLocation } from "@/domain/event-locations";
 import { getSequentialRoutePoints } from "@/domain/map-route";
 import type { BibleEvent, BibleLocation } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
+import { FiltersPanel } from "./FiltersPanel";
 
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAX_MAP_ZOOM = 18;
@@ -379,22 +380,25 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     >
       <div ref={containerRef} className="real-map" aria-label="Карта OpenStreetMap с местами библейских событий" />
 
-      <div className="map-legend" aria-label="Условные обозначения">
-        <span><i className="legend-dot ot" />Ветхий Завет</span>
-        <span><i className="legend-dot nt" />Новый Завет</span>
-        <button
-          className="map-route-toggle"
-          type="button"
-          disabled={!route}
-          aria-pressed={Boolean(route && routesEnabled)}
-          aria-label={!route ? "Для текущего режима маршрут недоступен" : routesEnabled ? "Скрыть линии маршрута" : "Показать линии маршрута"}
-          onClick={toggleRoutes}
-        >
-          <i className={`legend-line${!route ? " unavailable" : routesEnabled ? "" : " off"}`} />
-          {!route ? "Линий нет" : `Линии: ${routesEnabled ? "вкл" : "выкл"}`}
-        </button>
-        <span><i className="legend-river" />Тигр и Евфрат</span>
-        {historicalRegionsEnabled && <span><i className="legend-region" />Области: {visibleHistoricalRegions.length}/{biblicalRegions.length}</span>}
+      <div className="map-toolbar">
+        <div className="map-legend" aria-label="Условные обозначения">
+          <span><i className="legend-dot ot" />Ветхий Завет</span>
+          <span><i className="legend-dot nt" />Новый Завет</span>
+          <button
+            className="map-route-toggle"
+            type="button"
+            disabled={!route}
+            aria-pressed={Boolean(route && routesEnabled)}
+            aria-label={!route ? "Для текущего режима маршрут недоступен" : routesEnabled ? "Скрыть линии маршрута" : "Показать линии маршрута"}
+            onClick={toggleRoutes}
+          >
+            <i className={`legend-line${!route ? " unavailable" : routesEnabled ? "" : " off"}`} />
+            {!route ? "Линий нет" : `Линии: ${routesEnabled ? "вкл" : "выкл"}`}
+          </button>
+          <span><i className="legend-river" />Тигр и Евфрат</span>
+          {historicalRegionsEnabled && <span><i className="legend-region" />Области: {visibleHistoricalRegions.length}/{biblicalRegions.length}</span>}
+        </div>
+        <FiltersPanel />
       </div>
 
       <button

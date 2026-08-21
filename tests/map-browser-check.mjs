@@ -136,6 +136,13 @@ try {
   await page.getByRole('button', { name: 'Показать линии маршрута' }).click();
   await page.locator('.biblical-route-line').waitFor({ state: "attached", timeout: 10_000 });
   await page.getByRole('button', { name: 'Фильтры' }).click();
+  const filterPlacement = await page.evaluate(() => ({
+    inHeader: Boolean(document.querySelector('.app-header [aria-label="Фильтры"]')),
+    inMap: Boolean(document.querySelector('.map-stage .map-filter-trigger')),
+    dropdown: Boolean(document.querySelector('.map-filter-dropdown')),
+  }));
+  if (filterPlacement.inHeader || !filterPlacement.inMap || !filterPlacement.dropdown) throw new Error(`The map filter dropdown is misplaced: ${JSON.stringify(filterPlacement)}`);
+  await page.screenshot({ path: resolve(".filter-dropdown-check.png"), fullPage: false });
   const routeToggle = page.locator('.switch-row').filter({ hasText: 'Соединять точки маршрутом' }).locator('input');
   await routeToggle.uncheck();
   if (await page.locator('.biblical-route-line').count()) throw new Error("The route filter did not hide the route");
@@ -147,7 +154,7 @@ try {
   if (await page.locator('.biblical-river').count()) throw new Error("The biblical rivers filter did not hide the layer");
   await riverToggle.check();
   await page.locator('.biblical-river-tigris').waitFor({ state: "attached", timeout: 10_000 });
-  await page.getByRole('button', { name: 'Показать на карте' }).click();
+  await page.getByRole('button', { name: 'Готово' }).click();
   await page.screenshot({ path: resolve(".map-browser-check.png"), fullPage: false });
   console.log(JSON.stringify({ ...result, clickZoomBefore, clickZoomSamples, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, contextCards, browserErrors: errors }));
 } finally {

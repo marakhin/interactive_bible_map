@@ -108,12 +108,15 @@ try {
   await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
 
   await page.getByRole("button", { name: "Фильтры" }).click();
+  if (await page.locator('.app-header').getByRole('button', { name: 'Фильтры' }).count()) throw new Error("The filter control is still in the header");
+  if (!(await page.locator('.map-stage').getByRole('button', { name: 'Фильтры' }).count())) throw new Error("The filter control is missing from the map");
+  await page.locator('.map-filter-dropdown').waitFor({ state: "visible", timeout: 10_000 });
   const regionSwitch = page.locator("label.switch-row").filter({ hasText: "Области и земли Писания" }).locator('input[type="checkbox"]');
   if (await regionSwitch.isChecked()) throw new Error("The Scripture region layer unexpectedly starts enabled");
   await regionSwitch.check();
   await page.getByRole("button", { name: "Очистить" }).click();
   await page.locator(".region-selector-grid label").filter({ hasText: "Галилея" }).locator('input[type="checkbox"]').check();
-  await page.getByRole("button", { name: "Показать на карте" }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
   await page.locator('.biblical-region-boundary[data-region-id="galilee"]').waitFor({ state: "attached", timeout: 10_000 });
   let regionCount = await page.locator(".biblical-region-boundary").count();
   if (regionCount !== 1) throw new Error(`Expected only the selected Galilee region, found ${regionCount}`);
@@ -127,7 +130,7 @@ try {
   }
   await page.getByRole("button", { name: "Фильтры" }).click();
   await page.getByRole("button", { name: "Все", exact: true }).click();
-  await page.getByRole("button", { name: "Показать на карте" }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
   await page.waitForFunction(() => document.querySelectorAll(".biblical-region-boundary").length === 10);
   regionCount = await page.locator(".biblical-region-boundary").count();
   if (await page.locator('.biblical-region-boundary[data-region-id="judea"]').count() !== 1) throw new Error("The Judea boundary did not return after selecting all regions");
@@ -144,7 +147,7 @@ try {
   await page.screenshot({ path: resolve(".regions-layer-check.png"), fullPage: false });
   await page.getByRole("button", { name: "Фильтры" }).click();
   await regionSwitch.uncheck();
-  await page.getByRole("button", { name: "Показать на карте" }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
   await page.waitForFunction(() => document.querySelectorAll(".biblical-region-boundary").length === 0);
 
   const matthewUrl = new URL(page.url());
