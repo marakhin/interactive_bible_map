@@ -6,6 +6,7 @@ export default defineConfig({
   use: { baseURL: "http://localhost:3000" },
   projects: [
     { name: "mobile-safari", use: { ...devices["iPhone 13"], browserName: "webkit" } },
+    { name: "mobile-safari-small", use: { ...devices["iPhone SE"], browserName: "webkit" } },
     { name: "mobile-safari-landscape", use: { ...devices["iPhone 13 landscape"], browserName: "webkit" } },
     { name: "desktop", use: { browserName: "chromium", viewport: { width: 1440, height: 900 } } },
   ],

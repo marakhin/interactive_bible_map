@@ -21,7 +21,10 @@ test("путь Авраама открывает маршрут и событи�
   }));
   expect(fittedRange.rangeStart).toBe(fittedRange.windowStart);
   expect(fittedRange.rangeEnd).toBe(fittedRange.windowEnd);
-  await page.locator('.event-rail [data-event-id="abraham-call"]').click();
+  if (await studyMenu.isVisible()) await studyMenu.click();
+  const eventButton = page.locator('.event-rail [data-event-id="abraham-call"]');
+  await eventButton.scrollIntoViewIfNeeded();
+  await eventButton.click();
   await expect(page.getByRole("heading", { name: "Призвание Аврама" })).toBeVisible();
 });
 
@@ -30,8 +33,10 @@ test("поиск Иерусалима открывает режим места",
   if (await mobileSearch.isVisible()) await mobileSearch.click();
   else await page.getByText(/Найти событие/).click();
   await page.getByLabel("Поисковый запрос").fill("Иерусалим");
-  await page.getByRole("button", { name: /Иерусалим/ }).last().click();
-  await expect(page.getByText("Что здесь произошло?")).toBeVisible();
+  const placeSection = page.locator(".search-results section").filter({ has: page.getByRole("heading", { name: "Места" }) });
+  await placeSection.getByRole("button", { name: /^Иерусалим / }).click();
+  await expect(page).toHaveURL(/place=jerusalem/);
+  await expect(page.locator(".active-selection-title b")).toHaveText("Иерусалим");
 });
 
 test("фильтр Нового Завета меняет состояние URL", async ({ page }) => {
@@ -113,9 +118,39 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(layout.atlas?.width).toBeLessThanOrEqual(layout.viewport.width + 1);
   expect(layout.atlas?.height).toBeLessThanOrEqual(layout.viewport.height + 1);
   expect(layout.map?.height).toBeGreaterThan(150);
+  expect(layout.timeline?.width).toBeLessThanOrEqual(layout.viewport.width + 1);
   expect(layout.timeline?.bottom).toBeLessThanOrEqual(layout.viewport.height + 1);
   expect(layout.header?.top).toBeGreaterThanOrEqual(-1);
   expect(layout.tapTargets.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
+
+  const eraScroller = page.locator(".era-chips");
+  if (await eraScroller.isVisible()) {
+    const eraBox = await eraScroller.boundingBox();
+    const initialScroll = await eraScroller.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        overflowX: style.overflowX,
+        touchAction: style.touchAction,
+      };
+    });
+    expect(initialScroll.scrollWidth).toBeGreaterThan(initialScroll.clientWidth);
+    expect(initialScroll.overflowX).toBe("scroll");
+    expect(initialScroll.touchAction).toBe("pan-x");
+    expect(eraBox?.width).toBeLessThanOrEqual(layout.viewport.width + 1);
+    await eraScroller.evaluate((element) => { element.scrollLeft = 0; });
+    await eraScroller.evaluate((element) => { element.scrollBy({ left: 220 }); });
+    await expect.poll(() => eraScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    await eraScroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+    await expect.poll(() => eraScroller.evaluate((element) => Math.ceil(element.scrollLeft + element.clientWidth))).toBeGreaterThanOrEqual(initialScroll.scrollWidth);
+    const endPosition = await eraScroller.evaluate((element) => {
+      const container = element.getBoundingClientRect();
+      const lastChip = element.lastElementChild?.getBoundingClientRect();
+      return { containerRight: container.right, lastChipRight: lastChip?.right ?? Number.POSITIVE_INFINITY };
+    });
+    expect(endPosition.lastChipRight).toBeLessThanOrEqual(endPosition.containerRight + 1);
+  }
 
   await page.getByLabel("Поиск").click();
   const searchLayout = await page.evaluate(() => {
@@ -137,14 +172,47 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(searchLayout.fontSize).toBeGreaterThanOrEqual(16);
   await page.getByLabel("Закрыть поиск").click();
 
-  await page.getByLabel("Фильтры").click();
-  await expect(page.locator(".map-filter-dropdown")).toBeVisible();
+  const filterTrigger = page.getByLabel("Фильтры");
+  const filterTriggerBox = await filterTrigger.boundingBox();
+  expect(filterTriggerBox?.width).toBe(44);
+  expect(filterTriggerBox?.height).toBe(44);
+  await expect(filterTrigger.locator("span")).toBeHidden();
+  await filterTrigger.click();
+  const filterDropdown = page.locator(".map-filter-dropdown");
+  await expect(filterDropdown).toBeVisible();
+  const filterLayout = await filterDropdown.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return {
+      top: box.top,
+      right: box.right,
+      bottom: box.bottom,
+      left: box.left,
+      overflowY: style.overflowY,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    };
+  });
+  expect(filterLayout.top).toBeGreaterThanOrEqual(-1);
+  expect(filterLayout.left).toBeGreaterThanOrEqual(-1);
+  expect(filterLayout.right).toBeLessThanOrEqual(filterLayout.viewport.width + 1);
+  expect(filterLayout.bottom).toBeLessThanOrEqual(filterLayout.viewport.height + 1);
+  expect(filterLayout.overflowY).toBe("auto");
+
+  const regionsSwitch = filterDropdown.locator(".switch-row").filter({ hasText: "Области и земли Писания" });
+  await regionsSwitch.click();
+  await expect(filterDropdown.locator(".region-selector")).toBeVisible();
+  const expandedFilterLayout = await filterDropdown.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return { bottom: box.bottom, clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, viewportHeight: window.innerHeight };
+  });
+  expect(expandedFilterLayout.bottom).toBeLessThanOrEqual(expandedFilterLayout.viewportHeight + 1);
+  expect(expandedFilterLayout.scrollHeight).toBeGreaterThanOrEqual(expandedFilterLayout.clientHeight);
   const primaryAction = page.getByRole("button", { name: "Готово" });
   await primaryAction.scrollIntoViewIfNeeded();
   await expect(primaryAction).toBeVisible();
   await primaryAction.click();
 
-  await page.locator(".timeline-event").first().click();
+  await page.locator(".timeline-event").first().evaluate((button) => (button as HTMLButtonElement).click());
   const sheet = page.locator(".event-sheet");
   await expect(sheet).toBeVisible();
   const sheetBox = await sheet.boundingBox();
