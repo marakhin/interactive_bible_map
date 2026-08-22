@@ -263,13 +263,34 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         `<strong>${group.location.ancientNameRu}</strong><span>${group.events.length} ${group.events.length === 1 ? "событие" : "событий"}</span>`,
         { direction: "top", offset: [0, -8], className: "bible-map-tooltip", permanent: false, interactive: true },
       );
-      marker.on("click", () => {
+      const openMarker = () => {
         const selected = group.events.find((event) => event.id === activeEventId) ?? group.events[0];
         if (selected) selectEvent(selected.id);
-      });
+      };
+      marker.on("click", openMarker);
       marker.on("tooltipopen", (event) => {
         const element = event.tooltip.getElement();
-        if (element) element.onclick = () => marker.fire("click");
+        if (!element) return;
+        element.setAttribute("role", "button");
+        element.setAttribute("tabindex", "0");
+        element.setAttribute("aria-label", `Открыть события места ${group.location.ancientNameRu}`);
+        leaflet.DomEvent.disableClickPropagation(element);
+        let lastTouchActivation = 0;
+        element.onpointerup = (pointerEvent) => {
+          if (pointerEvent.pointerType !== "touch") return;
+          lastTouchActivation = Date.now();
+          leaflet.DomEvent.stop(pointerEvent);
+          openMarker();
+        };
+        element.onclick = (clickEvent) => {
+          leaflet.DomEvent.stop(clickEvent);
+          if (Date.now() - lastTouchActivation > 500) openMarker();
+        };
+        element.onkeydown = (keyboardEvent) => {
+          if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
+          leaflet.DomEvent.stop(keyboardEvent);
+          openMarker();
+        };
       });
       marker.addTo(layer);
       const markerElement = marker.getElement();

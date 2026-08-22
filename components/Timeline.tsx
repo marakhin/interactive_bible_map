@@ -183,7 +183,10 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
         <div><span className="eyebrow">Временной диапазон</span><strong aria-live="polite">{rangeLabel}</strong></div>
         <div className="timeline-actions"><button aria-label="Предыдущий временной отрезок" onClick={() => shift(-1)}><ChevronLeft size={19} /></button><button aria-label="Уменьшить масштаб времени" disabled={timelineZoom === 1} onClick={() => changeZoom(timelineZoom - 1)}><Minus size={17} /></button><span>{timelineZoom}×</span><button aria-label="Увеличить масштаб времени" disabled={timelineZoom === 5} onClick={() => changeZoom(timelineZoom + 1)}><Plus size={17} /></button><button aria-label="Следующий временной отрезок" onClick={() => shift(1)}><ChevronRight size={19} /></button></div>
       </div>
-      <div className="era-chips" aria-label="Эпохи">{eras.slice(1).map((era) => <button key={era.id} onClick={() => selectEra({ start: era.start, end: era.end })}>{era.title}</button>)}</div>
+      <div className="era-chips" aria-label="Эпохи">{eras.slice(1).map((era) => {
+        const selected = timeRange.start === era.start && timeRange.end === era.end;
+        return <button key={era.id} aria-pressed={selected} onClick={() => selectEra({ start: era.start, end: era.end })}>{era.title}</button>;
+      })}</div>
       <div className="timeline-track-wrap">
         <div className="timeline-testament-label">ВЕТХИЙ ЗАВЕТ</div><div className="timeline-nt-label">НОВЫЙ ЗАВЕТ</div>
         <div className="timeline-track" ref={trackRef}>

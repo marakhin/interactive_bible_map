@@ -155,6 +155,16 @@ test("мобильный Safari сохраняет интерфейс внутр
       return { containerRight: container.right, lastChipRight: lastChip?.right ?? Number.POSITIVE_INFINITY };
     });
     expect(endPosition.lastChipRight).toBeLessThanOrEqual(endPosition.containerRight + 1);
+
+    const selectedEra = eraScroller.getByRole("button", { name: "Исход и Ханаан" });
+    await selectedEra.click();
+    await expect(selectedEra).toHaveAttribute("aria-pressed", "true");
+    const selectedEraStyle = await selectedEra.evaluate((element) => ({
+      backgroundColor: getComputedStyle(element).backgroundColor,
+      color: getComputedStyle(element).color,
+    }));
+    expect(selectedEraStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(selectedEraStyle.color).toBe("rgb(255, 255, 255)");
   }
 
   await page.getByLabel("Поиск").click();
@@ -175,6 +185,13 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(searchLayout.right).toBeLessThanOrEqual(searchLayout.viewport.width + 1);
   expect(searchLayout.bottom).toBeLessThanOrEqual(searchLayout.viewport.height + 1);
   expect(searchLayout.fontSize).toBeGreaterThanOrEqual(16);
+  const searchCoversMapFilter = await page.evaluate(() => {
+    const trigger = document.querySelector<HTMLElement>(".map-filter-trigger");
+    if (!trigger) return false;
+    const box = trigger.getBoundingClientRect();
+    return !document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest(".map-filter-trigger");
+  });
+  expect(searchCoversMapFilter).toBe(true);
   await page.getByLabel("Закрыть поиск").click();
 
   const filterTrigger = page.getByLabel("Фильтры");
@@ -237,4 +254,36 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(sheetBox?.x).toBeGreaterThanOrEqual(-1);
   expect((sheetBox?.x ?? 0) + (sheetBox?.width ?? 0)).toBeLessThanOrEqual((viewport?.width ?? 0) + 1);
   expect((sheetBox?.y ?? 0) + (sheetBox?.height ?? 0)).toBeLessThanOrEqual((viewport?.height ?? 0) + 1);
+});
+
+test("мобильная подпись места открывает событие", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile-safari"));
+
+  const hebronMarker = page.locator('[data-location-id="hebron"]');
+  await expect(hebronMarker).toBeVisible();
+  await hebronMarker.dispatchEvent("click");
+  const sheet = page.locator(".event-sheet");
+  await expect(sheet).toBeVisible();
+  await page.getByLabel("Закрыть карточку").click();
+  await expect(sheet).toBeHidden();
+
+  const map = page.locator(".map-stage");
+  let currentZoom = Number(await map.getAttribute("data-map-zoom"));
+  const zoomIn = page.locator(".leaflet-control-zoom-in");
+  while (currentZoom < 9) {
+    await zoomIn.click();
+    currentZoom += 1;
+    await expect(map).toHaveAttribute("data-map-zoom", String(currentZoom));
+  }
+
+  const hebronTooltip = page.getByRole("button", { name: "Открыть события места Хеврон" });
+  await expect(hebronTooltip).toBeAttached();
+  const tooltipInteraction = await hebronTooltip.evaluate((element) => ({
+    pointerEvents: getComputedStyle(element).pointerEvents,
+    touchAction: getComputedStyle(element).touchAction,
+    tabIndex: (element as HTMLElement).tabIndex,
+  }));
+  expect(tooltipInteraction).toEqual({ pointerEvents: "auto", touchAction: "manipulation", tabIndex: 0 });
+  await hebronTooltip.dispatchEvent("pointerup", { pointerType: "touch" });
+  await expect(sheet).toBeVisible();
 });
