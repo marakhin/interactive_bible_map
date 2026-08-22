@@ -21,7 +21,7 @@ const MAPLIBRE_WORKER_URL = "/assets/maplibre-gl-worker.mjs";
 const MAP_LOAD_TIMEOUT_MS = 15_000;
 const MAX_INITIAL_MAP_ERRORS = 4;
 const MAX_MAP_ZOOM = 18;
-const DESKTOP_AUTOMATIC_LABEL_MIN_ZOOM = 9;
+const DESKTOP_AUTOMATIC_LABEL_MIN_ZOOM = 11;
 const MOBILE_AUTOMATIC_LABEL_MIN_ZOOM = 11;
 const MOBILE_MAP_QUERY = "(max-width: 767px)";
 const HOME_SOUTH_WEST: Leaflet.LatLngTuple = [24, 10];
@@ -339,7 +339,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         if (labelsVisible || item.active) item.marker.openTooltip();
         else item.marker.closeTooltip();
       }
-      if (automaticLabelMinZoom !== MOBILE_AUTOMATIC_LABEL_MIN_ZOOM || !labelsVisible) return;
+      if (!labelsVisible) return;
       if (declutterFrame !== undefined) window.cancelAnimationFrame(declutterFrame);
       declutterFrame = window.requestAnimationFrame(() => {
         const occupied: DOMRect[] = [];
@@ -415,16 +415,20 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     map.on("zoomend", showAutomaticLabels);
     map.on("moveend", showAutomaticLabels);
     showAutomaticLabels();
-    if (fitAllPoints && markers.length > 1) {
-      const bounds = markers.map((marker) => coordinates(marker.location)).filter((point): point is Leaflet.LatLngTuple => Boolean(point));
-      if (bounds.length > 1) map.fitBounds(leaflet.latLngBounds(bounds), { padding: [48, 48], maxZoom: 5, animate: true });
-    }
     return () => {
       map.off("zoomend", showAutomaticLabels);
       map.off("moveend", showAutomaticLabels);
       if (declutterFrame !== undefined) window.cancelAnimationFrame(declutterFrame);
     };
-  }, [activeEventId, automaticLabelMinZoom, fitAllPoints, mapInitialized, markers, selectEvent]);
+  }, [activeEventId, automaticLabelMinZoom, mapInitialized, markers, selectEvent]);
+
+  useEffect(() => {
+    const leaflet = leafletRef.current;
+    const map = mapRef.current;
+    if (!leaflet || !map || !fitAllPoints || markers.length < 2) return;
+    const bounds = markers.map((marker) => coordinates(marker.location)).filter((point): point is Leaflet.LatLngTuple => Boolean(point));
+    if (bounds.length > 1) map.fitBounds(leaflet.latLngBounds(bounds), { padding: [48, 48], maxZoom: 5, animate: true });
+  }, [fitAllPoints, mapInitialized, markers]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;

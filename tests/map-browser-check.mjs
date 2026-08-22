@@ -78,7 +78,7 @@ try {
   const maxZoom = Number(await mapStage.getAttribute('data-map-max-zoom'));
   const labelMinZoom = Number(await mapStage.getAttribute('data-label-min-zoom'));
   if (maxZoom < 18) throw new Error(`The maximum map zoom is still too low: ${maxZoom}`);
-  if (labelMinZoom < 9) throw new Error(`Automatic labels still appear too early: zoom ${labelMinZoom}`);
+  if (labelMinZoom < 11) throw new Error(`Automatic labels still appear too early: zoom ${labelMinZoom}`);
   const zoomTo = async (target) => {
     while (Number(await mapStage.getAttribute('data-map-zoom')) < target) {
       await page.locator('.leaflet-control-zoom-in').click();
@@ -97,6 +97,22 @@ try {
   await page.waitForTimeout(500);
   const automaticLabels = await page.locator('.bible-map-tooltip').count();
   if (automaticLabels < 1) throw new Error(`Automatic place labels are missing at zoom ${labelMinZoom}`);
+  const overlappingAutomaticLabels = await page.locator('.bible-map-tooltip').evaluateAll((labels) => {
+    const rectangles = labels
+      .map((label) => label.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight);
+    const overlaps = [];
+    for (let left = 0; left < rectangles.length; left += 1) {
+      for (let right = left + 1; right < rectangles.length; right += 1) {
+        const a = rectangles[left];
+        const b = rectangles[right];
+        if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) overlaps.push([left, right]);
+      }
+    }
+    return overlaps;
+  });
+  if (overlappingAutomaticLabels.length) throw new Error(`Automatic place labels overlap at zoom ${labelMinZoom}: ${JSON.stringify(overlappingAutomaticLabels)}`);
+  await page.screenshot({ path: resolve('.label-density-check.png'), fullPage: false });
   await zoomTo(maxZoom);
   if (Number(await mapStage.getAttribute('data-map-zoom')) !== maxZoom) throw new Error(`The map did not reach zoom ${maxZoom}`);
   if (!(await page.locator('.leaflet-control-zoom-in').evaluate((button) => button.classList.contains('leaflet-disabled')))) throw new Error("The zoom control did not reach its configured maximum");
@@ -201,6 +217,71 @@ try {
   if (await failurePage.locator('.bible-marker-dot').count() !== retryMarkersBefore) throw new Error("Retrying the basemap recreated biblical markers");
   await failurePage.close();
 
+  const densityPage = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  if (targetUrl.startsWith("http://127.0.0.1:3100")) {
+    await densityPage.route("http://127.0.0.1:3100/assets/**", async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      const file = resolve("dist", "client", pathname.replace(/^\//, ""));
+      const contentType = pathname.endsWith(".css") ? "text/css" : /\.m?js$/.test(pathname) ? "text/javascript" : "application/octet-stream";
+      await route.fulfill({ status: 200, contentType, body: await readFile(file) });
+    });
+    await densityPage.route("http://127.0.0.1:3100/map/openfreemap-ru.json", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: await readFile(resolve("dist", "client", "map", "openfreemap-ru.json")) });
+    });
+  }
+  await densityPage.addInitScript(() => localStorage.setItem("bible-map-onboarding", "seen"));
+  const densityUrl = new URL(targetUrl);
+  densityUrl.search = "?view=all&browser-check=label-density";
+  await densityPage.goto(densityUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await densityPage.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
+  await densityPage.waitForTimeout(1200);
+  await densityPage.locator('[data-location-id="jerusalem"]').dispatchEvent('click');
+  await densityPage.locator('.event-sheet').waitFor({ state: "visible", timeout: 10_000 });
+  await densityPage.waitForTimeout(600);
+  const densityClickZoomBefore = Number(await densityPage.locator('.map-stage').getAttribute('data-map-zoom'));
+  await densityPage.locator('.event-sheet .close-button[aria-label="Закрыть"]').click();
+  await densityPage.locator('.event-sheet').waitFor({ state: "detached", timeout: 10_000 });
+  const densityClickZoomAfter = Number(await densityPage.locator('.map-stage').getAttribute('data-map-zoom'));
+  if (densityClickZoomAfter !== densityClickZoomBefore) throw new Error(`Clicking the dense-area point changed zoom: ${densityClickZoomBefore} -> ${densityClickZoomAfter}`);
+  const densityMapStage = densityPage.locator('.map-stage');
+  const densityLabelMinZoom = Number(await densityMapStage.getAttribute('data-label-min-zoom'));
+  while (Number(await densityMapStage.getAttribute('data-map-zoom')) < densityLabelMinZoom - 1) {
+    await densityPage.locator('.leaflet-control-zoom-in').click();
+    await densityPage.waitForTimeout(250);
+  }
+  await densityPage.waitForTimeout(500);
+  const labelsBeforeThreshold = await densityPage.locator('.bible-map-tooltip').evaluateAll((labels) => labels.filter((label) => {
+    const rect = label.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
+  }).length);
+  if (labelsBeforeThreshold !== 0) throw new Error(`Dense-area labels are visible before zoom ${densityLabelMinZoom}: ${labelsBeforeThreshold}`);
+  await densityPage.screenshot({ path: resolve('.label-threshold-check.png'), fullPage: false });
+  await densityPage.locator('.leaflet-control-zoom-in').click();
+  await densityPage.waitForTimeout(600);
+  const densityOverlaps = await densityPage.locator('.bible-map-tooltip').evaluateAll((labels) => {
+    const rectangles = labels
+      .map((label) => label.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight);
+    const overlaps = [];
+    for (let left = 0; left < rectangles.length; left += 1) {
+      for (let right = left + 1; right < rectangles.length; right += 1) {
+        const a = rectangles[left];
+        const b = rectangles[right];
+        if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) overlaps.push([left, right]);
+      }
+    }
+    return overlaps;
+  });
+  const densityLabels = await densityPage.locator('.bible-map-tooltip').evaluateAll((labels) => labels.filter((label) => {
+    const rect = label.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
+  }).length);
+  if (densityLabels < 2) throw new Error(`Too few dense-area labels are visible at zoom ${densityLabelMinZoom}: ${densityLabels}`);
+  if (densityOverlaps.length) throw new Error(`Dense-area labels overlap at zoom ${densityLabelMinZoom}: ${JSON.stringify(densityOverlaps)}`);
+  await densityPage.screenshot({ path: resolve('.label-density-check.png'), fullPage: false });
+  const densityResult = { densityLabelMinZoom, labelsBeforeThreshold, densityLabels, densityOverlaps, densityClickZoomBefore, densityClickZoomAfter };
+  await densityPage.close();
+
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   let mobileVectorTileResponses = 0;
   mobilePage.on("response", (response) => {
@@ -236,7 +317,7 @@ try {
   await mobilePage.screenshot({ path: resolve(".map-mobile-check.png"), fullPage: false });
   await mobilePage.close();
 
-  console.log(JSON.stringify({ ...result, vectorTileResponses, mobileVectorTileResponses, mobileResult, retryStatus, clickZoomBefore, clickZoomSamples, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, scriptureOnlyUnmappedIds, contextCards, browserErrors: errors }));
+  console.log(JSON.stringify({ ...result, vectorTileResponses, mobileVectorTileResponses, mobileResult, retryStatus, clickZoomBefore, clickZoomSamples, densityResult, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, scriptureOnlyUnmappedIds, contextCards, browserErrors: errors }));
 } finally {
   await browser.close();
 }
