@@ -58,6 +58,7 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
   const timeRange = useBibleStore((state) => state.timeRange);
   const timeWindow = useBibleStore((state) => state.timeWindow);
   const timelineZoom = useBibleStore((state) => state.timelineZoom);
+  const timelineFocused = useBibleStore((state) => state.timelineFocused);
   const setTimeRange = useBibleStore((state) => state.setTimeRange);
   const setTimeWindow = useBibleStore((state) => state.setTimeWindow);
   const setZoom = useBibleStore((state) => state.setZoom);
@@ -184,7 +185,7 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
         <div className="timeline-actions"><button aria-label="Предыдущий временной отрезок" onClick={() => shift(-1)}><ChevronLeft size={19} /></button><button aria-label="Уменьшить масштаб времени" disabled={timelineZoom === 1} onClick={() => changeZoom(timelineZoom - 1)}><Minus size={17} /></button><span>{timelineZoom}×</span><button aria-label="Увеличить масштаб времени" disabled={timelineZoom === 5} onClick={() => changeZoom(timelineZoom + 1)}><Plus size={17} /></button><button aria-label="Следующий временной отрезок" onClick={() => shift(1)}><ChevronRight size={19} /></button></div>
       </div>
       <div className="era-chips" aria-label="Эпохи">{eras.slice(1).map((era) => {
-        const selected = timeRange.start === era.start && timeRange.end === era.end;
+        const selected = timelineFocused && timeRange.start === era.start && timeRange.end === era.end;
         return <button key={era.id} aria-pressed={selected} onClick={() => selectEra({ start: era.start, end: era.end })}>{era.title}</button>;
       })}</div>
       <div className="timeline-track-wrap">

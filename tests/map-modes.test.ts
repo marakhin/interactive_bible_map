@@ -11,6 +11,7 @@ describe("режимы отображения карты", () => {
       activeLocationId: undefined,
       activeBookId: undefined,
       activeEventId: undefined,
+      timeRange: { start: -2200, end: 100 },
       timelineFocused: false,
       allPointsEnabled: false,
       historicalRegionsEnabled: false,
@@ -44,6 +45,19 @@ describe("режимы отображения карты", () => {
     expect(state.timeRange).toEqual({ start: -600, end: -500 });
     expect(state.timelineFocused).toBe(true);
     expect(state.allPointsEnabled).toBe(false);
+  });
+
+  it("оставляет активным только последний фильтр книги или эпохи", () => {
+    useBibleStore.getState().selectBook("luke");
+    useBibleStore.getState().setTimeRange({ start: -1050, end: -586 });
+    let state = useBibleStore.getState();
+    expect(state.activeBookId).toBeUndefined();
+    expect(state.timelineFocused).toBe(true);
+
+    useBibleStore.getState().selectBook("luke");
+    state = useBibleStore.getState();
+    expect(state.activeBookId).toBe("luke");
+    expect(state.timelineFocused).toBe(false);
   });
 
   it("позволяет выбирать отдельные области независимо от общего переключателя слоя", () => {

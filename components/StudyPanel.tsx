@@ -56,13 +56,18 @@ export function StudyPanel() {
   const selectStory = (id: string) => { selectStoryline(id); track("story_started", { id }); setOpen(false); };
   const selectBookStudy = (id: string) => { selectBook(id); track("book_started", { id }); setOpen(false); };
   const showEveryPoint = () => { showAllPoints(); track("all_points_opened"); setOpen(false); };
+  const toggleStoryPlayback = () => {
+    const nextPlaying = !storyPlaying;
+    setStoryPlaying(nextPlaying);
+    if (nextPlaying && window.matchMedia("(max-width: 767px)").matches) setOpen(false);
+  };
 
   return (
     <aside className={`study-panel ${open ? "open" : ""}`} aria-label="Выбор пути изучения">
       <div className="study-head"><div><span className="eyebrow">Навигатор</span><h2>Изучать Писание</h2></div><button aria-label="Закрыть" onClick={() => setOpen(false)}><X size={20} /></button></div>
       {activeTitle ? <section className="active-selection">
         <div className="active-selection-title"><span>{activeBookId ? <BookMarked size={17} /> : <History size={17} />}</span><div><small>{activeBookId ? "Книга на карте" : "Сейчас на карте"}</small><b>{activeTitle}</b></div></div>
-        {activeStorylineId && <div className="story-player"><button onClick={() => setStoryPlaying(!storyPlaying)}>{storyPlaying ? <Pause size={17} /> : <Play size={17} />}{storyPlaying ? "Пауза" : "История"}</button><div>{([0.5, 1, 2] as const).map((speed) => <button key={speed} aria-pressed={storySpeed === speed} onClick={() => setStorySpeed(speed)}>{speed}×</button>)}</div></div>}
+        {activeStorylineId && <div className="story-player"><button onClick={toggleStoryPlayback}>{storyPlaying ? <Pause size={17} /> : <Play size={17} />}{storyPlaying ? "Пауза" : "История"}</button><div>{([0.5, 1, 2] as const).map((speed) => <button key={speed} aria-pressed={storySpeed === speed} onClick={() => setStorySpeed(speed)}>{speed}×</button>)}</div></div>}
         {activeBookId && <p className="book-selection-note">На карте показаны места событий, прямо связанных с этой книгой. Выберите отрывок, чтобы открыть текст Писания.</p>}
         <div className="event-rail">{selectionEvents.map((event, index) => <button key={event.id} data-event-id={event.id} onClick={() => { selectEvent(event.id); setOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span><div><b>{event.titleRu}</b><small>{event.scriptureReferences.filter((reference) => !activeBookId || reference.bookId === activeBookId).map((reference) => reference.displayRu).join("; ")}</small></div><ChevronRight size={16} /></button>)}</div>
         <button className="reset-selection" onClick={showEveryPoint}>Показать все точки без фильтров</button>

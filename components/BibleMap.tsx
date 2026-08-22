@@ -16,7 +16,9 @@ import { FiltersPanel } from "./FiltersPanel";
 
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAX_MAP_ZOOM = 18;
-const AUTOMATIC_LABEL_MIN_ZOOM = 9;
+const DESKTOP_AUTOMATIC_LABEL_MIN_ZOOM = 9;
+const MOBILE_AUTOMATIC_LABEL_MIN_ZOOM = 11;
+const MOBILE_MAP_QUERY = "(max-width: 767px)";
 const HOME_SOUTH_WEST: Leaflet.LatLngTuple = [24, 10];
 const HOME_NORTH_EAST: Leaflet.LatLngTuple = [43.5, 50];
 
@@ -33,6 +35,15 @@ type LocatedMarker = {
 function coordinates(location: BibleLocation | undefined): Leaflet.LatLngTuple | undefined {
   if (!location || location.latitude === undefined || location.longitude === undefined) return undefined;
   return [location.latitude, location.longitude];
+}
+
+function eventCountWord(count: number) {
+  const lastTwo = count % 100;
+  if (lastTwo >= 11 && lastTwo <= 14) return "событий";
+  const last = count % 10;
+  if (last === 1) return "событие";
+  if (last >= 2 && last <= 4) return "события";
+  return "событий";
 }
 
 function createRegionLabel(region: BiblicalRegion) {
@@ -91,6 +102,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const [basemapStatus, setBasemapStatus] = useState<"loading" | "ready" | "error">("loading");
   const [mapInitialized, setMapInitialized] = useState(false);
   const [mapZoom, setMapZoom] = useState(3);
+  const [automaticLabelMinZoom, setAutomaticLabelMinZoom] = useState(DESKTOP_AUTOMATIC_LABEL_MIN_ZOOM);
 
   const activeEventId = useBibleStore((state) => state.activeEventId);
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
@@ -100,8 +112,17 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const selectedHistoricalRegionIds = useBibleStore((state) => state.selectedHistoricalRegionIds);
   const biblicalRiversEnabled = useBibleStore((state) => state.biblicalRiversEnabled);
   const routesEnabled = useBibleStore((state) => state.routesEnabled);
+  const storyPlaying = useBibleStore((state) => state.storyPlaying);
   const toggleRoutes = useBibleStore((state) => state.toggleRoutes);
   const selectEvent = useBibleStore((state) => state.selectEvent);
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_MAP_QUERY);
+    const syncThreshold = () => setAutomaticLabelMinZoom(media.matches ? MOBILE_AUTOMATIC_LABEL_MIN_ZOOM : DESKTOP_AUTOMATIC_LABEL_MIN_ZOOM);
+    syncThreshold();
+    media.addEventListener?.("change", syncThreshold);
+    return () => media.removeEventListener?.("change", syncThreshold);
+  }, []);
 
   const visibleHistoricalRegions = useMemo(() => {
     const selected = new Set(selectedHistoricalRegionIds);
@@ -200,6 +221,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       regionLayerRef.current = leaflet.layerGroup().addTo(map);
       riverLayerRef.current = leaflet.layerGroup().addTo(map);
       leaflet.control.zoom({ position: "topright" }).addTo(map);
+      leaflet.control.scale({ position: "bottomleft", imperial: false, metric: true, maxWidth: 90 }).addTo(map);
       map.fitBounds(leaflet.latLngBounds(HOME_SOUTH_WEST, HOME_NORTH_EAST), { padding: [24, 24], animate: false });
       setMapZoom(map.getZoom());
       retryBasemapRef.current = () => installBasemap(map, leaflet);
@@ -236,12 +258,27 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     layer.clearLayers();
 
     const markerTooltips: Array<{ marker: Leaflet.CircleMarker; active: boolean }> = [];
+    let declutterFrame: number | undefined;
     const showAutomaticLabels = () => {
-      const labelsVisible = map.getZoom() >= AUTOMATIC_LABEL_MIN_ZOOM;
+      const labelsVisible = map.getZoom() >= automaticLabelMinZoom;
       for (const item of markerTooltips) {
         if (labelsVisible || item.active) item.marker.openTooltip();
         else item.marker.closeTooltip();
       }
+      if (automaticLabelMinZoom !== MOBILE_AUTOMATIC_LABEL_MIN_ZOOM || !labelsVisible) return;
+      if (declutterFrame !== undefined) window.cancelAnimationFrame(declutterFrame);
+      declutterFrame = window.requestAnimationFrame(() => {
+        const occupied: DOMRect[] = [];
+        const ordered = [...markerTooltips].sort((left, right) => Number(right.active) - Number(left.active));
+        for (const item of ordered) {
+          const element = item.marker.getTooltip()?.getElement();
+          if (!element || !item.marker.isTooltipOpen()) continue;
+          const rect = element.getBoundingClientRect();
+          const overlaps = occupied.some((other) => rect.left < other.right + 4 && rect.right + 4 > other.left && rect.top < other.bottom + 4 && rect.bottom + 4 > other.top);
+          if (overlaps && !item.active) item.marker.closeTooltip();
+          else occupied.push(rect);
+        }
+      });
     };
 
     for (const group of markers) {
@@ -260,7 +297,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
         weight: active ? 4 : 2.5,
       });
       marker.bindTooltip(
-        `<strong>${group.location.ancientNameRu}</strong><span>${group.events.length} ${group.events.length === 1 ? "событие" : "событий"}</span>`,
+        `<strong>${group.location.ancientNameRu}</strong><span><b>${group.events.length}</b><i class="tooltip-count-word">${eventCountWord(group.events.length)}</i></span>`,
         { direction: "top", offset: [0, -8], className: "bible-map-tooltip", permanent: false, interactive: true },
       );
       const openMarker = () => {
@@ -302,13 +339,18 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     }
 
     map.on("zoomend", showAutomaticLabels);
+    map.on("moveend", showAutomaticLabels);
     showAutomaticLabels();
     if (fitAllPoints && markers.length > 1) {
       const bounds = markers.map((marker) => coordinates(marker.location)).filter((point): point is Leaflet.LatLngTuple => Boolean(point));
       if (bounds.length > 1) map.fitBounds(leaflet.latLngBounds(bounds), { padding: [48, 48], maxZoom: 5, animate: true });
     }
-    return () => { map.off("zoomend", showAutomaticLabels); };
-  }, [activeEventId, fitAllPoints, mapInitialized, markers, selectEvent]);
+    return () => {
+      map.off("zoomend", showAutomaticLabels);
+      map.off("moveend", showAutomaticLabels);
+      if (declutterFrame !== undefined) window.cancelAnimationFrame(declutterFrame);
+    };
+  }, [activeEventId, automaticLabelMinZoom, fitAllPoints, mapInitialized, markers, selectEvent]);
 
   useEffect(() => {
     const leaflet = leafletRef.current;
@@ -438,8 +480,13 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     const active = activeEventId ? events.find((event) => event.id === activeEventId) : undefined;
     const point = active ? coordinates(getPrimaryEventLocation(active, locationById)) : undefined;
     if (!map || !point) return;
+    if (storyPlaying && window.matchMedia(MOBILE_MAP_QUERY).matches) {
+      map.stop();
+      map.flyTo(point, Math.max(map.getZoom(), 8), { animate: true, duration: 1.15, easeLinearity: 0.2 });
+      return;
+    }
     map.panTo(point, { animate: true, duration: 0.35, easeLinearity: 0.25 });
-  }, [activeEventId, mapInitialized]);
+  }, [activeEventId, mapInitialized, storyPlaying]);
 
   return (
     <section
@@ -449,7 +496,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       data-basemap-status={basemapStatus}
       data-map-zoom={mapZoom}
       data-map-max-zoom={MAX_MAP_ZOOM}
-      data-label-min-zoom={AUTOMATIC_LABEL_MIN_ZOOM}
+      data-label-min-zoom={automaticLabelMinZoom}
+      data-playback-motion={storyPlaying ? "fly" : "pan"}
       data-route-status={!route ? "unavailable" : routesEnabled ? "visible" : "hidden"}
       data-route-kind={route?.kind}
       data-regions-status={historicalRegionsEnabled ? "visible" : "hidden"}

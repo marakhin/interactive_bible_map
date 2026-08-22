@@ -124,6 +124,7 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect(layout.header?.top).toBeGreaterThanOrEqual(-1);
   expect(layout.tapTargets.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
   await expect(page.locator(".map-legend")).toBeHidden();
+  await expect(page.locator(".leaflet-control-scale-line")).toBeVisible();
   await expect(page.locator(".timeline-topline")).toBeHidden();
   await expect(page.locator(".timeline-track-wrap")).toBeHidden();
 
@@ -269,12 +270,31 @@ test("мобильная подпись места открывает событ
 
   const map = page.locator(".map-stage");
   let currentZoom = Number(await map.getAttribute("data-map-zoom"));
+  const labelMinZoom = Number(await map.getAttribute("data-label-min-zoom"));
+  expect(labelMinZoom).toBeGreaterThanOrEqual(11);
   const zoomIn = page.locator(".leaflet-control-zoom-in");
-  while (currentZoom < 9) {
+  while (currentZoom < labelMinZoom) {
     await zoomIn.click();
     currentZoom += 1;
     await expect(map).toHaveAttribute("data-map-zoom", String(currentZoom));
   }
+
+  await page.waitForTimeout(100);
+  const overlappingLabels = await page.locator(".bible-map-tooltip").evaluateAll((labels) => {
+    const rectangles = labels
+      .map((label) => label.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight);
+    const overlaps: Array<[number, number]> = [];
+    for (let left = 0; left < rectangles.length; left += 1) {
+      for (let right = left + 1; right < rectangles.length; right += 1) {
+        const a = rectangles[left];
+        const b = rectangles[right];
+        if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) overlaps.push([left, right]);
+      }
+    }
+    return overlaps;
+  });
+  expect(overlappingLabels).toEqual([]);
 
   const hebronTooltip = page.getByRole("button", { name: "Открыть события места Хеврон" });
   await expect(hebronTooltip).toBeAttached();
@@ -286,4 +306,50 @@ test("мобильная подпись места открывает событ
   expect(tooltipInteraction).toEqual({ pointerEvents: "auto", touchAction: "manipulation", tabIndex: 0 });
   await hebronTooltip.dispatchEvent("pointerup", { pointerType: "touch" });
   await expect(sheet).toBeVisible();
+});
+
+test("на мобильном действует последний выбранный фильтр книги или эпохи", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-safari");
+
+  const era = page.getByRole("button", { name: "Цари и пророки" });
+  await era.scrollIntoViewIfNeeded();
+  await era.click();
+  await expect(era).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByLabel("Открыть выбор сюжета").click();
+  const luke = page.locator('[data-book-id="luke"]');
+  await luke.scrollIntoViewIfNeeded();
+  await luke.click();
+  await expect(page).toHaveURL(/book=luke/);
+  await expect(era).toHaveAttribute("aria-pressed", "false");
+
+  await era.scrollIntoViewIfNeeded();
+  await era.click();
+  await expect(era).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => new URL(page.url()).searchParams.has("book")).toBe(false);
+  await expect(page.locator(".bible-marker-dot").first()).toBeAttached();
+});
+
+test("мобильное воспроизведение оставляет карту видимой", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-safari");
+
+  const studyMenu = page.getByLabel("Открыть выбор сюжета");
+  await studyMenu.click();
+  await page.getByRole("button", { name: /Путь Авраама/ }).first().click();
+  await studyMenu.click();
+  await page.getByRole("button", { name: "История" }).click();
+
+  const compactSheet = page.locator(".event-sheet.story-playing");
+  await expect(compactSheet).toBeVisible({ timeout: 7_000 });
+  await expect(compactSheet.locator(".story-playback-summary")).toBeVisible();
+  await expect(compactSheet.locator(".sheet-tabs")).toBeHidden();
+  await expect(page.locator(".map-stage")).toHaveAttribute("data-playback-motion", "fly");
+
+  const geometry = await page.evaluate(() => {
+    const sheet = document.querySelector(".event-sheet.story-playing")?.getBoundingClientRect();
+    const timeline = document.querySelector(".timeline")?.getBoundingClientRect();
+    return { sheetHeight: sheet?.height ?? Number.POSITIVE_INFINITY, sheetBottom: sheet?.bottom ?? Number.POSITIVE_INFINITY, timelineTop: timeline?.top ?? 0 };
+  });
+  expect(geometry.sheetHeight).toBeLessThanOrEqual(142);
+  expect(geometry.sheetBottom).toBeLessThanOrEqual(geometry.timelineTop + 1);
 });

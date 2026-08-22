@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, Info, MapPin, Share2, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, Info, MapPin, Pause, Share2, Users, X } from "lucide-react";
 import { characterById } from "@/data/characters";
 import { eventById, events } from "@/data/events";
 import { locationById } from "@/data/locations";
@@ -20,6 +20,8 @@ export function EventSheet() {
   const setSheetTab = useBibleStore((state) => state.setSheetTab);
   const bookmarkIds = useBibleStore((state) => state.bookmarkIds);
   const toggleBookmark = useBibleStore((state) => state.toggleBookmark);
+  const storyPlaying = useBibleStore((state) => state.storyPlaying);
+  const setStoryPlaying = useBibleStore((state) => state.setStoryPlaying);
   const event = activeEventId ? eventById.get(activeEventId) : undefined;
   if (!event) return null;
   const mainLocation = getPrimaryEventLocation(event, locationById);
@@ -31,7 +33,19 @@ export function EventSheet() {
   const scripturePassages = event.scriptureReferences.flatMap((reference) => getSynodalPassages(reference));
 
   return (
-    <aside className="event-sheet" aria-label={`Событие: ${event.titleRu}`}>
+    <aside className={`event-sheet${storyPlaying ? " story-playing" : ""}`} aria-label={`Событие: ${event.titleRu}`}>
+      <div className="story-playback-summary" aria-live="polite">
+        <div className="story-playback-copy">
+          <span>Сейчас на карте</span>
+          <strong>{event.titleRu}</strong>
+          <small>{event.chronology.displayRu}{mainLocation ? ` · ${mainLocation.ancientNameRu}` : ""}</small>
+          <p>{event.scriptureSummary}</p>
+        </div>
+        <div className="story-playback-actions">
+          <button aria-label="Поставить воспроизведение на паузу" onClick={() => setStoryPlaying(false)}><Pause size={17} /></button>
+          <button onClick={() => setStoryPlaying(false)}>Подробнее</button>
+        </div>
+      </div>
       <button className="sheet-handle" aria-label="Закрыть карточку" onClick={() => selectEvent(undefined)}><ChevronDown size={19} /></button>
       <div className="event-sheet-head">
         <div><span className={`testament-badge ${event.testament.toLowerCase()}`}>{event.testament === "OT" ? "Ветхий Завет" : "Новый Завет"}</span><h2>{event.titleRu}</h2></div>
