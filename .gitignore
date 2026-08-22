@@ -13,7 +13,10 @@
 
 # testing
 /coverage
+/test-results/
 /*-check.png
+/public/assets/maplibre-gl-worker.mjs
+/public/assets/maplibre-gl-shared.mjs
 
 # next.js
 /.next/

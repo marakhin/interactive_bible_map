@@ -11,8 +11,11 @@ try {
     await page.route("http://127.0.0.1:3100/assets/**", async (route) => {
       const pathname = new URL(route.request().url()).pathname;
       const file = resolve("dist", "client", pathname.replace(/^\//, ""));
-      const contentType = pathname.endsWith(".css") ? "text/css" : pathname.endsWith(".js") ? "text/javascript" : "application/octet-stream";
+      const contentType = pathname.endsWith(".css") ? "text/css" : /\.m?js$/.test(pathname) ? "text/javascript" : "application/octet-stream";
       await route.fulfill({ status: 200, contentType, body: await readFile(file) });
+    });
+    await page.route("http://127.0.0.1:3100/map/openfreemap-ru.json", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: await readFile(resolve("dist", "client", "map", "openfreemap-ru.json")) });
     });
   }
   const errors = [];
@@ -35,8 +38,11 @@ try {
   }
   await page.waitForFunction(() => [...document.querySelectorAll(".bible-marker-dot")].some((marker) => marker.getAttribute("data-event-ids")));
   const markMapIds = await page.locator(".bible-marker-dot").evaluateAll((markers) => [...new Set(markers.flatMap((marker) => (marker.getAttribute("data-event-ids") ?? "").split(" ").filter(Boolean)))].sort());
-  if (JSON.stringify(markRailIds) !== JSON.stringify(markMapIds)) {
-    throw new Error(`Mark map is out of sync: rail=${markRailIds.join(",")}; map=${markMapIds.join(",")}`);
+  const unexpectedMarkMapIds = markMapIds.filter((eventId) => !markRailIds.includes(eventId));
+  if (unexpectedMarkMapIds.length) throw new Error(`Mark map contains unrelated events: ${unexpectedMarkMapIds.join(",")}`);
+  const scriptureOnlyMarkIds = markRailIds.filter((eventId) => !markMapIds.includes(eventId));
+  if (!["baptism-christ", "crucifixion", "resurrection", "transfiguration"].every((eventId) => scriptureOnlyMarkIds.includes(eventId))) {
+    throw new Error(`Mark events without canonical coordinates are incomplete: ${scriptureOnlyMarkIds.join(",")}`);
   }
   await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
   const bookRouteStyle = await page.locator('.biblical-route-line').evaluate((line) => ({
@@ -52,15 +58,24 @@ try {
   await page.getByRole('button', { name: 'Показать линии маршрута' }).click();
   await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
 
-  const locationChecks = [
-    ["Крещение Господне", "Иордан", "jordan"],
-    ["Служение в Капернауме", "Капернаум", "capernaum"],
-    ["Распятие Господа Иисуса Христа", "Голгофа", "golgotha"],
-  ];
-  for (const [eventTitle, locationTitle, locationId] of locationChecks) {
+  const mappedLocationChecks = [["Служение в Капернауме", "Капернаум", "capernaum"]];
+  for (const [eventTitle, locationTitle, locationId] of mappedLocationChecks) {
     await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
     await page.locator(".event-meta button", { hasText: locationTitle }).waitFor({ state: "visible", timeout: 10_000 });
     await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).waitFor({ state: "attached", timeout: 10_000 });
+  }
+  const scriptureOnlyLocationChecks = [
+    ["Крещение Господне", "Иордан", "jordan"],
+    ["Распятие Господа Иисуса Христа", "Голгофа", "golgotha"],
+  ];
+  for (const [eventTitle, locationTitle, locationId] of scriptureOnlyLocationChecks) {
+    await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
+    await page.locator(".event-meta button", { hasText: locationTitle }).waitFor({ state: "visible", timeout: 10_000 });
+    if (await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).count()) throw new Error(`${eventTitle} still uses a tradition-based marker`);
+    await page.getByRole("tab", { name: "География" }).click();
+    const geographyText = await page.locator(".event-sheet").textContent();
+    if (/Предан|традиц|православ|Аль-Махтас/iu.test(geographyText ?? "")) throw new Error(`${eventTitle} exposes tradition in Geography: ${geographyText}`);
+    if (!(geographyText ?? "").includes("Точное место неизвестно")) throw new Error(`${eventTitle} does not mark the coordinate as unknown`);
   }
 
   await page.locator(".event-rail > button").filter({ hasText: "Явление воскресшего Господа ученикам в Галилее" }).click();
@@ -80,11 +95,11 @@ try {
   await page.goto(lukeUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
   await page.locator(".active-selection-title b", { hasText: "От Луки" }).waitFor({ state: "visible", timeout: 10_000 });
-  const expectedLukeSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain"];
+  const expectedLukeSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain", "centurion-servant-healed", "nain-widow"];
   const lukeRailIds = await page.locator(".event-rail > button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")));
   const lukeSequence = lukeRailIds.filter((eventId) => expectedLukeSequence.includes(eventId));
   if (JSON.stringify(lukeSequence) !== JSON.stringify(expectedLukeSequence)) {
-    throw new Error(`Luke 3–6 sequence is incorrect: ${lukeSequence.join(",")}`);
+    throw new Error(`Luke 3–7 sequence is incorrect: ${lukeSequence.join(",")}`);
   }
   const lukeTimelineIds = await page.locator(".timeline-event").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")));
   if (!expectedLukeSequence.every((eventId) => lukeTimelineIds.includes(eventId))) {
@@ -97,6 +112,7 @@ try {
     ["Служение в Капернауме", "Капернаум", "capernaum", "Лк. 4:31–44"],
     ["Чудесный улов и призвание учеников", "море Галилейское", "sea-galilee", "Лк. 5:1–11"],
     ["Избрание двенадцати и проповедь на ровном месте", "место проповеди по Лк. 6 не названо", "luke-sermon-area", "Лк. 6:12–49"],
+    ["Исцеление слуги сотника в Капернауме", "Капернаум", "capernaum", "Лк. 7:1–10"],
   ];
   for (const [eventTitle, locationTitle, locationId, reference] of lukeLocationChecks) {
     await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
@@ -104,6 +120,11 @@ try {
     await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).waitFor({ state: "attached", timeout: 10_000 });
     const eventReferences = await page.locator(".synodal-heading b").textContent();
     if (!eventReferences?.includes(reference)) throw new Error(`${eventTitle} is missing ${reference}: ${eventReferences}`);
+  }
+  const centurionReferences = await page.locator(".synodal-heading b").textContent();
+  const centurionPassageHeadings = await page.locator(".synodal-text section h3").allTextContents();
+  if (!["Лк. 7:1–10", "Мф. 8:5–13"].every((reference) => centurionReferences?.includes(reference) && centurionPassageHeadings.includes(reference))) {
+    throw new Error(`The centurion's servant passages are incomplete: ${centurionReferences}`);
   }
   await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
 
@@ -131,9 +152,18 @@ try {
   await page.getByRole("button", { name: "Фильтры" }).click();
   await page.getByRole("button", { name: "Все", exact: true }).click();
   await page.getByRole("button", { name: "Готово" }).click();
-  await page.waitForFunction(() => document.querySelectorAll(".biblical-region-boundary").length === 10);
+  await page.waitForFunction(() => document.querySelectorAll(".biblical-region-boundary").length === 11);
   regionCount = await page.locator(".biblical-region-boundary").count();
   if (await page.locator('.biblical-region-boundary[data-region-id="judea"]').count() !== 1) throw new Error("The Judea boundary did not return after selecting all regions");
+  const gadarenesBoundary = page.locator('.biblical-region-boundary[data-region-id="gadarenes"]');
+  await gadarenesBoundary.waitFor({ state: "attached", timeout: 10_000 });
+  await gadarenesBoundary.dispatchEvent("mouseover");
+  const gadarenesTooltip = page.locator(".biblical-region-tooltip").filter({ hasText: "страна Гадаринская" });
+  await gadarenesTooltip.waitFor({ state: "visible", timeout: 10_000 });
+  const gadarenesTooltipText = await gadarenesTooltip.textContent();
+  if (!gadarenesTooltipText?.includes("страна Гадаринская") || !gadarenesTooltipText.includes("Мк. 5:1–20") || !gadarenesTooltipText.includes("схематично")) {
+    throw new Error(`The Gadarenes boundary warning is incomplete: ${gadarenesTooltipText}`);
+  }
   await page.screenshot({ path: resolve(".luke-sermon-check.png"), fullPage: false });
   await page.getByRole("button", { name: "Закрыть" }).click();
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -144,6 +174,7 @@ try {
   }
   await page.locator(".historical-region-label", { hasText: "ГАЛИЛЕЯ" }).waitFor({ state: "visible", timeout: 10_000 });
   await page.locator(".historical-region-label", { hasText: "ИУДЕЯ" }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator(".historical-region-label", { hasText: "СТРАНА ГАДАРИНСКАЯ" }).waitFor({ state: "visible", timeout: 10_000 });
   const galileeBoundaryStyle = await page.locator('.biblical-region-boundary[data-region-id="galilee"]').evaluate((element) => ({
     fillOpacity: Number(element.getAttribute("fill-opacity")),
     strokeWidth: Number(element.getAttribute("stroke-width")),
@@ -151,6 +182,15 @@ try {
   if (galileeBoundaryStyle.fillOpacity < 0.16 || galileeBoundaryStyle.strokeWidth < 2) {
     throw new Error(`The region layer is still too faint: ${JSON.stringify(galileeBoundaryStyle)}`);
   }
+  await page.locator('.historical-region-source-marker[data-region-source-id="gadarenes"] .historical-region-info').click();
+  const gadarenesSourcePopup = page.locator(".biblical-region-source-popup");
+  await gadarenesSourcePopup.waitFor({ state: "visible", timeout: 10_000 });
+  const gadarenesSourceText = await gadarenesSourcePopup.textContent();
+  const gadarenesSourceUrls = await gadarenesSourcePopup.locator("a").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  if (!gadarenesSourceText?.includes("страну Гергесинскую") || !gadarenesSourceText.includes("Gadara/Pompeia") || !gadarenesSourceUrls.some((url) => url?.includes("pleiades.stoa.org/places/678142"))) {
+    throw new Error(`The Gadarenes source note is incomplete: ${gadarenesSourceText}`);
+  }
+  await gadarenesSourcePopup.locator(".leaflet-popup-close-button").click();
   await page.locator('.historical-region-source-marker[data-region-source-id="galilee"] .historical-region-info').click();
   const sourcePopup = page.locator(".biblical-region-source-popup");
   await sourcePopup.waitFor({ state: "visible", timeout: 10_000 });
@@ -203,7 +243,7 @@ try {
   }
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, lukeEvents: lukeRailIds.length, lukeSequence, regionCount, regionTooltipText, regionSourceText, regionSourceUrls, galileeBoundaryStyle, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, people: expectedPeople.map(([, nameRu]) => nameRu), allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, scriptureOnlyMarkIds, lukeEvents: lukeRailIds.length, lukeSequence, centurionReferences, centurionPassageHeadings, regionCount, regionTooltipText, gadarenesTooltipText, gadarenesSourceText, gadarenesSourceUrls, regionSourceText, regionSourceUrls, galileeBoundaryStyle, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, people: expectedPeople.map(([, nameRu]) => nameRu), allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }

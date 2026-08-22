@@ -141,3 +141,23 @@ export const locations: BibleLocation[] = [
 ];
 
 export const locationById = new Map(locations.map((location) => [location.id, location]));
+
+const traditionBasedLocationPattern = /традиц|церковн|православ/iu;
+
+export const interfaceLocations: BibleLocation[] = locations.map((location) => {
+  const isTraditionBased = location.localizationType === "traditional"
+    || traditionBasedLocationPattern.test(location.localizationNoteRu ?? "");
+  if (!isTraditionBased) return location;
+
+  return {
+    ...location,
+    modernNameRu: undefined,
+    latitude: undefined,
+    longitude: undefined,
+    localizationType: "unknown",
+    localizationNoteRu: "Современная координата этого связанного места не устанавливается указанным отрывком Писания.",
+    modernCountry: undefined,
+  };
+});
+
+export const interfaceLocationById = new Map(interfaceLocations.map((location) => [location.id, location]));

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed } from "lucide-react";
 import type * as Leaflet from "leaflet";
+import type { ErrorEvent as MapLibreErrorEvent, Map as MapLibreMap } from "maplibre-gl";
 import { biblicalRegions, type BiblicalRegion } from "@/data/biblical-regions";
 import { events } from "@/data/events";
 import biblicalRivers from "@/data/biblical-rivers.json";
-import { locationById } from "@/data/locations";
+import { interfaceLocationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
 import { getPrimaryEventLocation } from "@/domain/event-locations";
 import { getSequentialRoutePoints } from "@/domain/map-route";
@@ -14,7 +15,11 @@ import type { BibleEvent, BibleLocation } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
 import { FiltersPanel } from "./FiltersPanel";
 
-const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const DEFAULT_MAP_STYLE_URL = "/map/openfreemap-ru.json";
+const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL?.trim() || DEFAULT_MAP_STYLE_URL;
+const MAPLIBRE_WORKER_URL = "/assets/maplibre-gl-worker.mjs";
+const MAP_LOAD_TIMEOUT_MS = 15_000;
+const MAX_INITIAL_MAP_ERRORS = 4;
 const MAX_MAP_ZOOM = 18;
 const DESKTOP_AUTOMATIC_LABEL_MIN_ZOOM = 9;
 const MOBILE_AUTOMATIC_LABEL_MIN_ZOOM = 11;
@@ -30,6 +35,10 @@ type BibleMapProps = {
 type LocatedMarker = {
   location: BibleLocation;
   events: BibleEvent[];
+};
+
+type MapLibreLeafletLayer = Leaflet.Layer & {
+  getMaplibreMap(): MapLibreMap;
 };
 
 function coordinates(location: BibleLocation | undefined): Leaflet.LatLngTuple | undefined {
@@ -93,7 +102,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const containerRef = useRef<HTMLDivElement | null>(null);
   const leafletRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
-  const tileLayerRef = useRef<Leaflet.TileLayer | null>(null);
+  const basemapLayerRef = useRef<MapLibreLeafletLayer | null>(null);
+  const basemapCleanupRef = useRef<() => void>(() => undefined);
   const markerLayerRef = useRef<Leaflet.LayerGroup | null>(null);
   const routeLayerRef = useRef<Leaflet.LayerGroup | null>(null);
   const regionLayerRef = useRef<Leaflet.LayerGroup | null>(null);
@@ -132,7 +142,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const markers = useMemo<LocatedMarker[]>(() => {
     const grouped = new Map<string, LocatedMarker>();
     for (const event of visibleEvents) {
-      const location = getPrimaryEventLocation(event, locationById);
+      const location = getPrimaryEventLocation(event, interfaceLocationById);
       if (!coordinates(location) || !location) continue;
       const group = grouped.get(location.id) ?? { location, events: [] };
       group.events.push(event);
@@ -149,7 +159,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     const routeEvents = storyline
       ? storyline.eventIds.map((eventId) => visibleById.get(eventId)).filter((event): event is BibleEvent => Boolean(event))
       : visibleEvents;
-    const points = getSequentialRoutePoints(routeEvents, locationById);
+    const points = getSequentialRoutePoints(routeEvents, interfaceLocationById);
     if (points.length < 2) return undefined;
 
     const kind = storyline ? "story" : activeBookId ? "book" : "person";
@@ -167,36 +177,13 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     let observer: ResizeObserver | undefined;
     let firstResize: number | undefined;
 
-    const installBasemap = (map: Leaflet.Map, leaflet: typeof Leaflet) => {
-      setBasemapStatus("loading");
-      if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
-
-      let successfulTiles = 0;
-      let failedTiles = 0;
-      const layer = leaflet.tileLayer(OSM_TILE_URL, {
-        minZoom: 3,
-        maxZoom: 19,
-        keepBuffer: 2,
-        updateWhenIdle: true,
-        attribution: "© OpenStreetMap contributors",
-      });
-      tileLayerRef.current = layer;
-
-      layer.on("tileload", () => {
-        successfulTiles += 1;
-        setBasemapStatus("ready");
-      });
-      layer.on("tileerror", () => {
-        failedTiles += 1;
-        if (successfulTiles === 0 && failedTiles >= 4) setBasemapStatus("error");
-      });
-      layer.on("load", () => setBasemapStatus(successfulTiles > 0 ? "ready" : "error"));
-      layer.addTo(map);
-      layer.bringToBack();
-    };
-
-    void import("leaflet").then((leaflet) => {
+    void Promise.all([
+      import("leaflet"),
+      import("maplibre-gl"),
+      import("@maplibre/maplibre-gl-leaflet"),
+    ]).then(([leaflet, maplibre, maplibreLeaflet]) => {
       if (cancelled || !containerRef.current) return;
+      maplibre.setWorkerUrl(MAPLIBRE_WORKER_URL);
       leafletRef.current = leaflet;
       const map = leaflet.map(containerRef.current, {
         attributionControl: false,
@@ -224,8 +211,94 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       leaflet.control.scale({ position: "bottomleft", imperial: false, metric: true, maxWidth: 90 }).addTo(map);
       map.fitBounds(leaflet.latLngBounds(HOME_SOUTH_WEST, HOME_NORTH_EAST), { padding: [24, 24], animate: false });
       setMapZoom(map.getZoom());
-      retryBasemapRef.current = () => installBasemap(map, leaflet);
-      installBasemap(map, leaflet);
+
+      const installBasemap = () => {
+        basemapCleanupRef.current();
+        setBasemapStatus("loading");
+
+        let initialErrors = 0;
+        let styleLoaded = false;
+        let sourceLoaded = false;
+        let settled = false;
+        let layer: MapLibreLeafletLayer | null = null;
+
+        const markReady = () => {
+          if (cancelled || settled || !styleLoaded || !sourceLoaded) return;
+          settled = true;
+          window.clearTimeout(loadTimeout);
+          setBasemapStatus("ready");
+        };
+        const markError = () => {
+          if (cancelled || settled) return;
+          settled = true;
+          window.clearTimeout(loadTimeout);
+          setBasemapStatus("error");
+        };
+        const loadTimeout = window.setTimeout(markError, MAP_LOAD_TIMEOUT_MS);
+
+        try {
+          layer = maplibreLeaflet.maplibreGL({
+            style: MAP_STYLE_URL,
+            interactive: false,
+            attributionControl: false,
+            fadeDuration: 0,
+          }) as MapLibreLeafletLayer;
+          layer.addTo(map);
+          basemapLayerRef.current = layer;
+
+          const vectorMap = layer.getMaplibreMap();
+          const handleStyleLoad = () => {
+            styleLoaded = true;
+            markReady();
+          };
+          const handleSourceData = (event: { dataType?: string; isSourceLoaded?: boolean; sourceId?: string }) => {
+            if (event.dataType !== "source" || event.sourceId !== "openmaptiles" || !event.isSourceLoaded) return;
+            sourceLoaded = true;
+            markReady();
+          };
+          const handleIdle = () => {
+            styleLoaded = vectorMap.isStyleLoaded() === true;
+            sourceLoaded = true;
+            markReady();
+          };
+          const handleError = (event: MapLibreErrorEvent & { sourceId?: string }) => {
+            if (settled) return;
+            if (!event.sourceId) {
+              markError();
+              return;
+            }
+            initialErrors += 1;
+            if (initialErrors >= MAX_INITIAL_MAP_ERRORS) markError();
+          };
+
+          vectorMap.on("load", handleStyleLoad);
+          vectorMap.on("sourcedata", handleSourceData);
+          vectorMap.on("idle", handleIdle);
+          vectorMap.on("error", handleError);
+
+          basemapCleanupRef.current = () => {
+            window.clearTimeout(loadTimeout);
+            vectorMap.off("load", handleStyleLoad);
+            vectorMap.off("sourcedata", handleSourceData);
+            vectorMap.off("idle", handleIdle);
+            vectorMap.off("error", handleError);
+            if (layer && map.hasLayer(layer)) map.removeLayer(layer);
+            basemapLayerRef.current = null;
+            basemapCleanupRef.current = () => undefined;
+          };
+        } catch {
+          markError();
+          basemapCleanupRef.current = () => {
+            window.clearTimeout(loadTimeout);
+            if (layer && map.hasLayer(layer)) map.removeLayer(layer);
+            basemapLayerRef.current = null;
+            basemapCleanupRef.current = () => undefined;
+          };
+        }
+      };
+
+      retryBasemapRef.current = installBasemap;
+      installBasemap();
       setMapInitialized(true);
 
       observer = new ResizeObserver(() => map.invalidateSize({ animate: false }));
@@ -238,11 +311,12 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       if (firstResize !== undefined) window.clearTimeout(firstResize);
       observer?.disconnect();
       retryBasemapRef.current = () => undefined;
+      basemapCleanupRef.current();
       setMapInitialized(false);
       mapRef.current?.remove();
       leafletRef.current = null;
       mapRef.current = null;
-      tileLayerRef.current = null;
+      basemapLayerRef.current = null;
       markerLayerRef.current = null;
       routeLayerRef.current = null;
       regionLayerRef.current = null;
@@ -478,7 +552,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   useEffect(() => {
     const map = mapRef.current;
     const active = activeEventId ? events.find((event) => event.id === activeEventId) : undefined;
-    const point = active ? coordinates(getPrimaryEventLocation(active, locationById)) : undefined;
+    const point = active ? coordinates(getPrimaryEventLocation(active, interfaceLocationById)) : undefined;
     if (!map || !point) return;
     if (storyPlaying && window.matchMedia(MOBILE_MAP_QUERY).matches) {
       map.stop();
@@ -492,8 +566,9 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
     <section
       className="map-stage"
       aria-label="Интерактивная карта библейской истории"
-      data-map-engine="leaflet-openstreetmap"
+      data-map-engine="leaflet-maplibre-openfreemap"
       data-basemap-status={basemapStatus}
+      data-basemap-language="ru"
       data-map-zoom={mapZoom}
       data-map-max-zoom={MAX_MAP_ZOOM}
       data-label-min-zoom={automaticLabelMinZoom}
@@ -503,7 +578,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       data-regions-status={historicalRegionsEnabled ? "visible" : "hidden"}
       data-region-selection-count={visibleHistoricalRegions.length}
     >
-      <div ref={containerRef} className="real-map" aria-label="Карта OpenStreetMap с местами библейских событий" />
+      <div ref={containerRef} className="real-map" aria-label="Русскоязычная карта OpenFreeMap с местами библейских событий" />
 
       <div className="map-toolbar">
         <div className="map-legend" aria-label="Условные обозначения">
@@ -540,7 +615,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       </button>
 
       <div className="map-credit">
-        © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · реки: <a href="https://www.hydrosheds.org/products/hydrorivers" target="_blank" rel="noreferrer">HydroRIVERS</a>
+        © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · <a href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a> · <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a> · реки: <a href="https://www.hydrosheds.org/products/hydrorivers" target="_blank" rel="noreferrer">HydroRIVERS</a>
       </div>
 
       {basemapStatus === "error" && (

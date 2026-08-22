@@ -3,16 +3,24 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const executablePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const isOpenFreeMapVectorTile = (url) => url.includes("tiles.openfreemap.org/planet/") && url.includes(".pbf");
 const browser = await chromium.launch({ executablePath, headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-  const targetUrl = process.env.MAP_CHECK_URL ?? "http://127.0.0.1:3100/?story=abraham&browser-check=osm-map";
+  let vectorTileResponses = 0;
+  page.on("response", (response) => {
+    if (response.ok() && isOpenFreeMapVectorTile(response.url())) vectorTileResponses += 1;
+  });
+  const targetUrl = process.env.MAP_CHECK_URL ?? "http://127.0.0.1:3100/?story=abraham&browser-check=openfreemap-map";
   if (targetUrl.startsWith("http://127.0.0.1:3100")) {
     await page.route("http://127.0.0.1:3100/assets/**", async (route) => {
       const pathname = new URL(route.request().url()).pathname;
       const file = resolve("dist", "client", pathname.replace(/^\//, ""));
-      const contentType = pathname.endsWith(".css") ? "text/css" : pathname.endsWith(".js") ? "text/javascript" : "application/octet-stream";
+      const contentType = pathname.endsWith(".css") ? "text/css" : /\.m?js$/.test(pathname) ? "text/javascript" : "application/octet-stream";
       await route.fulfill({ status: 200, contentType, body: await readFile(file) });
+    });
+    await page.route("http://127.0.0.1:3100/map/openfreemap-ru.json", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: await readFile(resolve("dist", "client", "map", "openfreemap-ru.json")) });
     });
   }
   const errors = [];
@@ -20,8 +28,8 @@ try {
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   await page.addInitScript(() => localStorage.setItem("bible-map-onboarding", "seen"));
   await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.locator('.maplibregl-canvas').waitFor({ state: "visible", timeout: 20_000 });
   await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
-  await page.locator('.leaflet-tile-loaded').first().waitFor({ state: "visible", timeout: 20_000 });
   await page.waitForTimeout(1800);
   const contextCards = await page.locator('.context-card').count();
   if (contextCards !== 0) throw new Error(`The removed map context card is still rendered: ${contextCards}`);
@@ -32,8 +40,11 @@ try {
     throw new Error(`Story timeline is out of sync: rail=${storyRailIds.join(',')}; timeline=${storyTimelineIds.join(',')}`);
   }
   const storyMapIds = await page.locator('.bible-marker-dot').evaluateAll((markers) => [...new Set(markers.flatMap((marker) => (marker.getAttribute('data-event-ids') ?? '').split(' ').filter(Boolean)))].sort());
-  if (JSON.stringify(storyRailIds) !== JSON.stringify(storyMapIds)) {
-    throw new Error(`Story map is out of sync: rail=${storyRailIds.join(',')}; map=${storyMapIds.join(',')}`);
+  const unexpectedMapIds = storyMapIds.filter((eventId) => !storyRailIds.includes(eventId));
+  if (unexpectedMapIds.length) throw new Error(`Story map contains unrelated events: ${unexpectedMapIds.join(',')}`);
+  const scriptureOnlyUnmappedIds = storyRailIds.filter((eventId) => !storyMapIds.includes(eventId));
+  if (!scriptureOnlyUnmappedIds.includes('isaac-born') || !scriptureOnlyUnmappedIds.includes('offering-isaac')) {
+    throw new Error(`Scripture-only unmapped events are incomplete: ${scriptureOnlyUnmappedIds.join(',')}`);
   }
   const clickZoomBefore = Number(await page.locator('.map-stage').getAttribute('data-map-zoom'));
   const visibleMarkerIndex = await page.locator('.bible-marker-dot').evaluateAll((markers) => markers.findIndex((marker) => {
@@ -104,7 +115,8 @@ try {
   const result = await page.evaluate(() => ({
     engine: document.querySelector("[data-map-engine]")?.getAttribute("data-map-engine"),
     status: document.querySelector("[data-basemap-status]")?.getAttribute("data-basemap-status"),
-    tiles: document.querySelectorAll(".leaflet-tile-loaded").length,
+    language: document.querySelector("[data-basemap-language]")?.getAttribute("data-basemap-language"),
+    canvasBox: document.querySelector(".maplibregl-canvas")?.getBoundingClientRect().toJSON(),
     markers: document.querySelectorAll(".bible-marker-dot").length,
     routes: document.querySelectorAll(".biblical-route-line").length,
     rivers: document.querySelectorAll(".biblical-river").length,
@@ -119,10 +131,12 @@ try {
     mapBox: document.querySelector(".real-map")?.getBoundingClientRect().toJSON(),
   }));
 
-  if (result.engine !== "leaflet-openstreetmap") throw new Error(`Wrong map engine: ${result.engine}`);
+  if (result.engine !== "leaflet-maplibre-openfreemap") throw new Error(`Wrong map engine: ${result.engine}`);
   if (result.status !== "ready") throw new Error(`Basemap did not become ready: ${result.status}`);
-  if (result.tiles < 4) throw new Error(`Too few loaded OSM tiles: ${result.tiles}`);
-  if (result.markers < 8) throw new Error(`Too few event markers: ${result.markers}`);
+  if (result.language !== "ru") throw new Error(`Wrong basemap language: ${result.language}`);
+  if (vectorTileResponses < 1) throw new Error(`No successful OpenFreeMap vector responses: ${vectorTileResponses}`);
+  if (!result.canvasBox || result.canvasBox.width < 500 || result.canvasBox.height < 300) throw new Error("The MapLibre canvas is not visibly sized");
+  if (result.markers < 7) throw new Error(`Too few Scripture-grounded event markers: ${result.markers}`);
   if (result.routes < 1) throw new Error("The Abraham route is missing");
   if (result.rivers !== 2 || result.riverLabels !== 2) throw new Error(`Biblical river layer is incomplete: ${result.rivers} lines, ${result.riverLabels} labels`);
   if (automaticLabels < 1 || result.automaticLabels < 1) throw new Error("Automatic place labels are missing after zooming in");
@@ -156,7 +170,73 @@ try {
   await page.locator('.biblical-river-tigris').waitFor({ state: "attached", timeout: 10_000 });
   await page.getByRole('button', { name: 'Готово' }).click();
   await page.screenshot({ path: resolve(".map-browser-check.png"), fullPage: false });
-  console.log(JSON.stringify({ ...result, clickZoomBefore, clickZoomSamples, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, contextCards, browserErrors: errors }));
+  const failurePage = await browser.newPage({ viewport: { width: 1200, height: 760 } });
+  let blockVectorTiles = true;
+  await failurePage.route("https://tiles.openfreemap.org/planet/**", (route) => {
+    if (blockVectorTiles && isOpenFreeMapVectorTile(route.request().url())) return route.abort("failed");
+    return route.continue();
+  });
+  if (targetUrl.startsWith("http://127.0.0.1:3100")) {
+    await failurePage.route("http://127.0.0.1:3100/assets/**", async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      const file = resolve("dist", "client", pathname.replace(/^\//, ""));
+      const contentType = pathname.endsWith(".css") ? "text/css" : /\.m?js$/.test(pathname) ? "text/javascript" : "application/octet-stream";
+      await route.fulfill({ status: 200, contentType, body: await readFile(file) });
+    });
+    await failurePage.route("http://127.0.0.1:3100/map/openfreemap-ru.json", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: await readFile(resolve("dist", "client", "map", "openfreemap-ru.json")) });
+    });
+  }
+  await failurePage.addInitScript(() => localStorage.setItem("bible-map-onboarding", "seen"));
+  await failurePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await failurePage.locator('.map-basemap-error').waitFor({ state: "visible", timeout: 20_000 });
+  const retryZoomBefore = await failurePage.locator('.map-stage').getAttribute('data-map-zoom');
+  const retryMarkersBefore = await failurePage.locator('.bible-marker-dot').count();
+  if (retryMarkersBefore < 1 || await failurePage.locator('.biblical-route-line').count() < 1) throw new Error("Biblical overlays disappeared with the failed basemap");
+  blockVectorTiles = false;
+  await failurePage.getByRole('button', { name: 'Повторить' }).click();
+  await failurePage.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
+  const retryStatus = await failurePage.locator('[data-basemap-status]').getAttribute('data-basemap-status');
+  if (await failurePage.locator('.map-stage').getAttribute('data-map-zoom') !== retryZoomBefore) throw new Error("Retrying the basemap changed Leaflet zoom");
+  if (await failurePage.locator('.bible-marker-dot').count() !== retryMarkersBefore) throw new Error("Retrying the basemap recreated biblical markers");
+  await failurePage.close();
+
+  const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  let mobileVectorTileResponses = 0;
+  mobilePage.on("response", (response) => {
+    if (response.ok() && isOpenFreeMapVectorTile(response.url())) mobileVectorTileResponses += 1;
+  });
+  if (targetUrl.startsWith("http://127.0.0.1:3100")) {
+    await mobilePage.route("http://127.0.0.1:3100/assets/**", async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      const file = resolve("dist", "client", pathname.replace(/^\//, ""));
+      const contentType = pathname.endsWith(".css") ? "text/css" : /\.m?js$/.test(pathname) ? "text/javascript" : "application/octet-stream";
+      await route.fulfill({ status: 200, contentType, body: await readFile(file) });
+    });
+    await mobilePage.route("http://127.0.0.1:3100/map/openfreemap-ru.json", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: await readFile(resolve("dist", "client", "map", "openfreemap-ru.json")) });
+    });
+  }
+  await mobilePage.addInitScript(() => localStorage.setItem("bible-map-onboarding", "seen"));
+  await mobilePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await mobilePage.locator('.maplibregl-canvas').waitFor({ state: "visible", timeout: 20_000 });
+  await mobilePage.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
+  await mobilePage.waitForTimeout(1200);
+  const mobileResult = await mobilePage.evaluate(() => ({
+    status: document.querySelector("[data-basemap-status]")?.getAttribute("data-basemap-status"),
+    language: document.querySelector("[data-basemap-language]")?.getAttribute("data-basemap-language"),
+    canvasBox: document.querySelector(".maplibregl-canvas")?.getBoundingClientRect().toJSON(),
+    viewportWidth: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  if (mobileResult.status !== "ready" || mobileResult.language !== "ru") throw new Error(`Mobile basemap is not ready in Russian: ${JSON.stringify(mobileResult)}`);
+  if (mobileVectorTileResponses < 1) throw new Error(`No successful mobile OpenFreeMap vector responses: ${mobileVectorTileResponses}`);
+  if (!mobileResult.canvasBox || mobileResult.canvasBox.width < 300 || mobileResult.canvasBox.height < 200) throw new Error("The mobile MapLibre canvas is not visibly sized");
+  if (mobileResult.scrollWidth > mobileResult.viewportWidth) throw new Error(`The mobile basemap overflows the viewport: ${mobileResult.scrollWidth} > ${mobileResult.viewportWidth}`);
+  await mobilePage.screenshot({ path: resolve(".map-mobile-check.png"), fullPage: false });
+  await mobilePage.close();
+
+  console.log(JSON.stringify({ ...result, vectorTileResponses, mobileVectorTileResponses, mobileResult, retryStatus, clickZoomBefore, clickZoomSamples, storyEvents: storyRailIds.length, timelineEvents: storyTimelineIds.length, mappedEvents: storyMapIds.length, scriptureOnlyUnmappedIds, contextCards, browserErrors: errors }));
 } finally {
   await browser.close();
 }

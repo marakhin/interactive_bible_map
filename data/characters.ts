@@ -12,6 +12,8 @@ export const characters: BibleCharacter[] = [
   { id: "saul", slug: "saul", nameRu: "Саул", descriptionRu: "Первый царь Израиля.", testament: "OT" },
   { id: "david", slug: "david", nameRu: "Давид", descriptionRu: "Царь Израиля, помазанник Господень и псалмопевец.", testament: "OT" },
   { id: "solomon", slug: "solomon", nameRu: "Соломон", descriptionRu: "Сын Давида, построивший храм в Иерусалиме.", testament: "OT" },
+  { id: "rehoboam", slug: "rehoboam", nameRu: "Ровоам", descriptionRu: "Сын Соломона, при котором десять колен отделились от дома Давида.", testament: "OT" },
+  { id: "jeroboam", slug: "jeroboam", nameRu: "Иеровоам", descriptionRu: "Сын Наватов, которого десять колен поставили царём над Израилем.", testament: "OT" },
   { id: "elijah", slug: "elijah", nameRu: "Илия", descriptionRu: "Пророк, служивший во время царя Ахава.", testament: "OT" },
   { id: "elisha", slug: "elisha", nameRu: "Елисей", descriptionRu: "Пророк, принявший служение после Илии.", testament: "OT" },
   { id: "isaiah", slug: "isaiah", nameRu: "Исаия", descriptionRu: "Пророк в Иудее и Иерусалиме.", testament: "OT" },

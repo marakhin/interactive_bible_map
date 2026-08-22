@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { characters } from "@/data/characters";
 import { events } from "@/data/events";
-import { locationById } from "@/data/locations";
+import { interfaceLocationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
 import { getVisibleEvents } from "@/domain/timeline";
 import { readUrlState, writeUrlState } from "@/lib/url-state";
@@ -41,7 +41,7 @@ export default function BibleAtlasApp() {
     if (initial.activeEventId && events.some((item) => item.id === initial.activeEventId)) state.selectEvent(initial.activeEventId);
     if (initial.activeStorylineId && storylineById.has(initial.activeStorylineId)) state.selectStoryline(initial.activeStorylineId);
     if (initial.activeCharacterId && characters.some((item) => item.id === initial.activeCharacterId)) state.selectCharacter(initial.activeCharacterId);
-    if (initial.activeLocationId && locationById.has(initial.activeLocationId)) state.selectLocation(initial.activeLocationId);
+    if (initial.activeLocationId && interfaceLocationById.has(initial.activeLocationId)) state.selectLocation(initial.activeLocationId);
     if (initial.activeBookId && events.some((item) => item.scriptureReferences.some((ref) => ref.bookId === initial.activeBookId))) state.selectBook(initial.activeBookId);
     if (["ALL", "OT", "NT"].includes(initial.testamentFilter ?? "")) state.setTestament(initial.testamentFilter!);
     if (!localStorage.getItem("bible-map-onboarding")) setOnboarding(1);

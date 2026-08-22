@@ -3,7 +3,7 @@
 import { BookOpen, Clock3, MapPin, Route, Search, UserRound, X } from "lucide-react";
 import { characters } from "@/data/characters";
 import { events } from "@/data/events";
-import { locations } from "@/data/locations";
+import { interfaceLocations } from "@/data/locations";
 import { storylines } from "@/data/storylines";
 import { track } from "@/lib/analytics";
 import { useBibleStore } from "@/store/useBibleStore";
@@ -23,7 +23,7 @@ export function SearchOverlay() {
   const matches = (value: string) => !term || normalize(value).includes(term);
   const eventResults = events.filter((event) => matches(`${event.titleRu} ${event.scriptureSummary} ${event.scriptureReferences.map((r) => r.displayRu).join(" ")}`)).slice(0, term ? 8 : 4);
   const peopleResults = characters.filter((person) => matches(`${person.nameRu} ${person.descriptionRu}`)).slice(0, 6);
-  const placeResults = locations.filter((place) => matches(`${place.ancientNameRu} ${place.modernNameRu ?? ""} ${place.modernCountry ?? ""}`)).slice(0, 6);
+  const placeResults = interfaceLocations.filter((place) => matches(`${place.ancientNameRu} ${place.modernNameRu ?? ""} ${place.modernCountry ?? ""}`)).slice(0, 6);
   const storyResults = storylines.filter((story) => matches(`${story.titleRu} ${story.descriptionRu}`)).slice(0, 6);
   const books = Array.from(new Map(events.flatMap((event) => event.scriptureReferences.map((ref) => [ref.bookId, ref.bookRu] as const))).entries());
   const bookResults = books.filter(([, title]) => matches(title)).slice(0, 6);

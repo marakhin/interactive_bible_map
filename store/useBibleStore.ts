@@ -28,7 +28,7 @@ interface BibleState {
   filtersOpen: boolean;
   searchQuery: string;
   searchMode: SearchMode;
-  sheetTab: "scripture" | "history" | "geography" | "tradition";
+  sheetTab: "scripture" | "history" | "geography";
   bookmarkIds: string[];
   storyPlaying: boolean;
   storySpeed: 0.5 | 1 | 2;

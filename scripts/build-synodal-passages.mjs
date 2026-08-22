@@ -1,9 +1,13 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { commonCanonMetadata, commonCanonOsis, commonCanonOsisSet } from "../data/common-canon.ts";
 import { events } from "../data/events.ts";
 
 const bible = JSON.parse(await readFile(resolve("data/synodal-bible.json"), "utf8"));
-const books = new Map(bible.books.map((book) => [book.osis, book]));
+const sourceBooks = new Map(bible.books.map((book) => [book.osis, book]));
+const missingCommonBooks = commonCanonOsis.filter((osis) => !sourceBooks.has(osis));
+if (missingCommonBooks.length) throw new Error(`Synodal source lacks common-canon books: ${missingCommonBooks.join(", ")}`);
+const books = new Map(bible.books.filter((book) => commonCanonOsisSet.has(book.osis)).map((book) => [book.osis, book]));
 
 const bookOsisById = {
   genesis: "Gen", exodus: "Exod", numbers: "Num", deuteronomy: "Deut", joshua: "Josh", judges: "Judg",
@@ -41,7 +45,9 @@ function passagesFor(reference) {
     const match = referencePattern.exec(display);
     if (!match) continue;
     const bookKey = match[1].replace(/\./g, "").replace(/\s+/g, " ").trim();
-    const book = books.get(bookOsisByDisplay[bookKey] ?? bookOsisById[reference.bookId]);
+    const osis = bookOsisByDisplay[bookKey] ?? bookOsisById[reference.bookId];
+    if (!commonCanonOsisSet.has(osis)) throw new Error(`Reference outside the shared 66-book canon: ${display.trim()}`);
+    const book = books.get(osis);
     if (!book) continue;
     const chapterStart = Number(match[2]);
     const verseStart = Number(match[3]);
@@ -54,8 +60,12 @@ function passagesFor(reference) {
 }
 
 const passages = {};
+const representedBooks = new Set();
 for (const event of events) {
   for (const reference of event.scriptureReferences) {
+    const osis = bookOsisById[reference.bookId];
+    if (!commonCanonOsisSet.has(osis)) throw new Error(`Event outside the shared 66-book canon: ${event.id}`);
+    representedBooks.add(osis);
     passages[reference.displayRu] = passagesFor(reference);
     if (!passages[reference.displayRu].length) throw new Error(`No Synodal text for ${event.id}: ${reference.displayRu}`);
   }
@@ -67,7 +77,11 @@ const output = {
     edition: bible.edition,
     license: bible.license,
     source: bible.source,
-    books: bible.books.length,
+    canon: commonCanonMetadata.id,
+    canonRu: commonCanonMetadata.titleRu,
+    books: commonCanonMetadata.books,
+    sourceBooks: bible.books.length,
+    representedBooks: representedBooks.size,
   },
   passages,
 };

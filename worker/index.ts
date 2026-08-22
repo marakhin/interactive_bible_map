@@ -19,6 +19,12 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+const MAPLIBRE_ASSET_PATHS = new Set([
+  "/assets/maplibre-gl-worker.mjs",
+  "/assets/maplibre-gl-shared.mjs",
+  "/map/openfreemap-ru.json",
+]);
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -28,6 +34,8 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (MAPLIBRE_ASSET_PATHS.has(url.pathname)) return env.ASSETS.fetch(request);
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];

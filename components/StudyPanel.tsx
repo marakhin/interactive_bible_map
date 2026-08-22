@@ -5,7 +5,7 @@ import { BookMarked, Bookmark, ChevronRight, CircleUserRound, History, MapPinned
 import { bibleBookById, bibleBooks } from "@/data/books";
 import { characters } from "@/data/characters";
 import { events } from "@/data/events";
-import { locationById } from "@/data/locations";
+import { interfaceLocationById } from "@/data/locations";
 import { storylines } from "@/data/storylines";
 import { track } from "@/lib/analytics";
 import { useBibleStore } from "@/store/useBibleStore";
@@ -49,7 +49,7 @@ export function StudyPanel() {
     : activeCharacterId
       ? characters.find((item) => item.id === activeCharacterId)?.nameRu
       : activeLocationId
-        ? locationById.get(activeLocationId)?.ancientNameRu
+        ? interfaceLocationById.get(activeLocationId)?.ancientNameRu
         : activeBookId
           ? bibleBookById.get(activeBookId)?.titleRu
           : undefined;

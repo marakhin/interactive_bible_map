@@ -83,9 +83,9 @@ describe("библейская хронология", () => {
     const latest = Math.max(...markEvents.map((event) => event.chronology.endYear ?? event.chronology.startYear!));
     expect(fit).toMatchObject({ zoom: 5, timeRange: { start: earliest, end: latest }, timeWindow: { start: earliest, end: latest } });
   });
-  it("сохраняет порядок выбранных событий третьей–шестой глав Евангелия от Луки", () => {
+  it("сохраняет порядок выбранных событий третьей–седьмой глав Евангелия от Луки", () => {
     const lukeEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "luke"));
-    const expectedSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain"];
+    const expectedSequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain", "centurion-servant-healed", "nain-widow"];
     const actualSequence = lukeEvents.map((event) => event.id).filter((eventId) => expectedSequence.includes(eventId));
     expect(actualSequence).toEqual(expectedSequence);
     expect(bibleBookById.get("luke")?.eventCount).toBe(lukeEvents.length);

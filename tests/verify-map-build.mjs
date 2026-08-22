@@ -1,5 +1,16 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
+
+const workerPath = resolve("dist", "client", "assets", "maplibre-gl-worker.mjs");
+const sharedPath = resolve("dist", "client", "assets", "maplibre-gl-shared.mjs");
+const [worker, shared] = await Promise.all([stat(workerPath), stat(sharedPath)]);
+if (worker.size < 10_000 || shared.size < 100_000) throw new Error("The MapLibre runtime assets are incomplete");
+
+const style = JSON.parse(await readFile(resolve("dist", "client", "map", "openfreemap-ru.json"), "utf8"));
+const styleCode = JSON.stringify(style);
+if (!styleCode.includes("tiles.openfreemap.org/planet") || !styleCode.includes("name:ru") || !styleCode.includes("name_en")) {
+  throw new Error("The localized OpenFreeMap style is missing or incomplete");
+}
 
 const manifest = JSON.parse(await readFile(resolve("dist", "client", ".vite", "manifest.json"), "utf8"));
 const clientEntries = Object.values(manifest).filter((entry) => entry.isEntry).map((entry) => entry.file);
@@ -10,11 +21,11 @@ const appBundle = manifest["components/BibleAtlasApp.tsx"]?.file?.replace(/^asse
 if (!appBundle || !assetFiles.includes(appBundle)) throw new Error("The Bible map client bundle is missing");
 
 const appCode = await readFile(resolve("dist", "client", "assets", appBundle), "utf8");
-if (!appCode.includes("leaflet-openstreetmap")) {
-  throw new Error("The Leaflet OpenStreetMap layer is missing");
+if (!appCode.includes("leaflet-maplibre-openfreemap") || !appCode.includes("/map/openfreemap-ru.json")) {
+  throw new Error("The Leaflet MapLibre OpenFreeMap layer is missing");
 }
-if (!appCode.includes("tile.openstreetmap.org") || appCode.includes("maplibre-gl-worker") || appCode.includes("tiles.openfreemap.org")) {
-  throw new Error("The production map is not using the approved OpenStreetMap basemap");
+if (appCode.includes("tile.openstreetmap.org") || appCode.includes("tiles.versatiles.org") || appCode.includes("leaflet-maplibre-versatiles") || !appCode.includes("maplibre-gl-worker.mjs")) {
+  throw new Error("The production map is not using the approved localized OpenFreeMap basemap");
 }
 if (!appCode.includes("data-map-ready")) throw new Error("The map readiness marker is missing");
 if (!appCode.includes("data-synodal-text") || !appCode.includes("Синодальный перевод")) {
@@ -40,4 +51,9 @@ if (!appCode.includes("Апостол Пётр") || !appCode.includes("Иако�
 const clientFiles = await readdir(resolve("dist", "client"));
 if (clientFiles.includes("sw.js")) throw new Error("The obsolete service worker is still being published");
 
-console.log("Verified the real OpenStreetMap basemap and biblical overlay bundle");
+const serverBundle = await readFile(resolve("dist", "server", "index.js"), "utf8");
+if (!serverBundle.includes("/assets/maplibre-gl-worker.mjs") || !serverBundle.includes("/assets/maplibre-gl-shared.mjs") || !serverBundle.includes("/map/openfreemap-ru.json")) {
+  throw new Error("The Sites worker does not serve the MapLibre runtime assets");
+}
+
+console.log(`Verified the Russian OpenFreeMap basemap, ${worker.size}-byte worker, and biblical overlay bundle`);

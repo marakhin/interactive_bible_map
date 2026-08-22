@@ -3,8 +3,12 @@ import { events } from "@/data/events";
 import { getSynodalPassages, synodalMetadata } from "@/data/synodal";
 
 describe("локальный Синодальный перевод", () => {
-  it("содержит православный состав 51+27 книг", () => {
-    expect(synodalMetadata.books).toBe(78);
+  it("ограничивает приложение 66 книгами общего христианского канона", () => {
+    expect(synodalMetadata.canon).toBe("shared-66");
+    expect(synodalMetadata.books).toBe(66);
+    expect(synodalMetadata.sourceBooks).toBe(78);
+    expect(synodalMetadata.representedBooks).toBe(22);
+    expect(synodalMetadata.canonRu).toContain("православных, католиков и протестантов");
     expect(synodalMetadata.translation).toBe("Синодальный перевод");
     expect(synodalMetadata.license).toBe("Public Domain");
   });
@@ -41,6 +45,16 @@ describe("локальный Синодальный перевод", () => {
     const catchText = getSynodalPassages(miraculousCatch.scriptureReferences[0])[0].verses;
     expect(catchText[0].text).toContain("озера Геннисаретского");
     expect(catchText.at(-1)?.text).toContain("оставили все и последовали за Ним");
+  });
+
+  it("показывает исцеление слуги сотника по Луке и параллельному месту Матфея", () => {
+    const event = events.find((item) => item.id === "centurion-servant-healed")!;
+    expect(event.scriptureReferences.map((reference) => reference.displayRu)).toEqual(["Лк. 7:1–10", "Мф. 8:5–13"]);
+    const passages = event.scriptureReferences.flatMap(getSynodalPassages);
+    expect(passages.map((passage) => passage.displayRu)).toEqual(["Лк. 7:1–10", "Мф. 8:5–13"]);
+    expect(passages[0].verses).toHaveLength(10);
+    expect(passages[0].verses[0].text).toContain("вошел в Капернаум");
+    expect(passages[0].verses.at(-1)?.text).toContain("слугу выздоровевшим");
   });
 
   it("покрывает прямым текстом все события", () => {

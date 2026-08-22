@@ -20,7 +20,6 @@ const auditedPrimaryLocations: Record<string, string> = {
   "kingdom-divides": "shechem",
   "samaria-falls": "samaria",
   "jerusalem-falls": "jerusalem",
-  "jeremiah-called": "anathoth",
   "flight-egypt": "egypt",
   "baptism-christ": "jordan",
   "temptation-christ": "jerusalem",
@@ -28,6 +27,7 @@ const auditedPrimaryLocations: Record<string, string> = {
   "nazareth-synagogue": "nazareth",
   "cana-wedding": "cana",
   "capernaum-ministry": "capernaum",
+  "centurion-servant-healed": "capernaum",
   "miraculous-catch": "sea-galilee",
   "luke-sermon-plain": "luke-sermon-area",
   "temple-teaching": "jerusalem",
@@ -68,9 +68,9 @@ describe("аудит географии событий", () => {
     expect(getPrimaryEventLocation(event, locationById)?.localizationType).toBe("unknown");
   });
 
-  it("сохраняет последовательность мест и честную неопределённость географии в Лк. 3–6", () => {
+  it("сохраняет последовательность мест и честную неопределённость географии в Лк. 3–7", () => {
     const lukeEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "luke"));
-    const sequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain"];
+    const sequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain", "centurion-servant-healed", "nain-widow"];
     const positions = sequence.map((eventId) => lukeEvents.findIndex((event) => event.id === eventId));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
@@ -80,6 +80,8 @@ describe("аудит географии событий", () => {
     expect(getPrimaryEventLocation(eventById.get("nazareth-synagogue")!, locationById)?.id).toBe("nazareth");
     expect(getPrimaryEventLocation(eventById.get("capernaum-ministry")!, locationById)?.id).toBe("capernaum");
     expect(getPrimaryEventLocation(eventById.get("miraculous-catch")!, locationById)?.id).toBe("sea-galilee");
+    expect(getPrimaryEventLocation(eventById.get("centurion-servant-healed")!, locationById)?.id).toBe("capernaum");
+    expect(getPrimaryEventLocation(eventById.get("nain-widow")!, locationById)?.id).toBe("nain");
     expect(locationById.get("judean-wilderness")?.localizationType).toBe("unknown");
     expect(getPrimaryEventLocation(eventById.get("luke-sermon-plain")!, locationById)).toMatchObject({
       id: "luke-sermon-area",

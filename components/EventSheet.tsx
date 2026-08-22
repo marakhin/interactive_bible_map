@@ -3,12 +3,11 @@
 import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, Info, MapPin, Pause, Share2, Users, X } from "lucide-react";
 import { characterById } from "@/data/characters";
 import { eventById, events } from "@/data/events";
-import { locationById } from "@/data/locations";
+import { interfaceLocationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
 import { getSynodalPassages, synodalMetadata } from "@/data/synodal";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { getPrimaryEventLocation } from "@/domain/event-locations";
-import { track } from "@/lib/analytics";
 import { useBibleStore } from "@/store/useBibleStore";
 
 export function EventSheet() {
@@ -24,7 +23,7 @@ export function EventSheet() {
   const setStoryPlaying = useBibleStore((state) => state.setStoryPlaying);
   const event = activeEventId ? eventById.get(activeEventId) : undefined;
   if (!event) return null;
-  const mainLocation = getPrimaryEventLocation(event, locationById);
+  const mainLocation = getPrimaryEventLocation(event, interfaceLocationById);
   const storyline = event.storylineIds.map((id) => storylineById.get(id)).find(Boolean);
   const sequence = storyline?.eventIds ?? events.map((item) => item.id);
   const index = sequence.indexOf(event.id);
@@ -56,7 +55,6 @@ export function EventSheet() {
         <button role="tab" aria-selected={sheetTab === "scripture"} onClick={() => setSheetTab("scripture")}>Писание</button>
         <button role="tab" aria-selected={sheetTab === "history"} onClick={() => setSheetTab("history")}>История</button>
         <button role="tab" aria-selected={sheetTab === "geography"} onClick={() => setSheetTab("geography")}>География</button>
-        <button role="tab" aria-selected={sheetTab === "tradition"} onClick={() => setSheetTab("tradition")}>Предание</button>
       </div>
       <div className="sheet-content">
         {sheetTab === "scripture" && <>
@@ -69,11 +67,10 @@ export function EventSheet() {
               {passage.verses.map((verse) => <p key={`${passageIndex}-${verse.chapter}-${verse.verse}`}><sup>{verse.verse}</sup>{verse.text}</p>)}
             </section>)}
           </div>
-          <div className="synodal-source"><span>Синодальный перевод {synodalMetadata.edition} года · {synodalMetadata.books} книг · текст загружен в приложение</span><a href={synodalMetadata.source} target="_blank" rel="noreferrer">Источник текста</a></div>
+          <div className="synodal-source"><span>Синодальный перевод {synodalMetadata.edition} года · {synodalMetadata.canonRu} · отрывок загружен в приложение</span><a href={synodalMetadata.source} target="_blank" rel="noreferrer">Источник текста</a></div>
         </>}
         {sheetTab === "history" && <><div className="section-kicker"><Info size={16} />Редакционная справка</div><p>{event.historicalNote ?? "Отдельная историческая реконструкция для этого события не добавлена. Карточка следует тексту указанного места Писания."}</p><div className="honesty-note"><b>{chronologyLabels[event.chronology.certainty]}</b><span>{event.chronology.noteRu}</span></div></>}
-        {sheetTab === "geography" && <><div className="section-kicker"><MapPin size={16} />Связанные места</div><div className="place-list">{event.locations.map((item) => { const place = locationById.get(item.locationId); return place ? <button key={`${event.id}-${item.locationId}-${item.order}`} onClick={() => { selectEvent(undefined); selectLocation(place.id); }}><span><b>{place.ancientNameRu}</b><small>{place.modernCountry}</small>{place.localizationNoteRu && <small className="place-note">{place.localizationNoteRu}</small>}</span><em>{localizationLabels[place.localizationType]}</em></button> : null; })}</div></>}
-        {sheetTab === "tradition" && <><div className="section-kicker"><BookOpen size={16} />Церковное Предание</div>{event.traditionNote ? <p>{event.traditionNote}</p> : <div className="empty-tab"><p>Для этого события отдельная заметка Предания пока не добавлена.</p><span>Этот раздел намеренно отделён от пересказа Писания.</span></div>}</>}
+        {sheetTab === "geography" && <><div className="section-kicker"><MapPin size={16} />Связанные места</div><div className="place-list">{event.locations.map((item) => { const place = interfaceLocationById.get(item.locationId); return place ? <button key={`${event.id}-${item.locationId}-${item.order}`} onClick={() => { selectEvent(undefined); selectLocation(place.id); }}><span><b>{place.ancientNameRu}</b><small>{place.modernCountry}</small>{place.localizationNoteRu && <small className="place-note">{place.localizationNoteRu}</small>}</span><em>{localizationLabels[place.localizationType]}</em></button> : null; })}</div></>}
         {!!event.characters.length && <div className="participants"><div className="section-kicker"><Users size={16} />Участники</div><div>{event.characters.map((id) => { const person = characterById.get(id); return person ? <button key={id} onClick={() => { selectEvent(undefined); selectCharacter(id); }}>{person.nameRu}</button> : null; })}</div></div>}
       </div>
       <div className="sheet-nav">

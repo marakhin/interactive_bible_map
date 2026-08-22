@@ -1,6 +1,6 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import { rm } from "node:fs/promises";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
@@ -13,12 +13,18 @@ const { d1, r2 } = hostingConfig;
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
-function removeObsoleteMapAssets() {
+function prepareMapAssets() {
   return {
-    name: "biblical-map:remove-obsolete-assets",
+    name: "biblical-map:prepare-map-assets",
     async buildStart() {
       await rm(resolve(process.cwd(), "dist", "client", "sw.js"), { force: true });
-      await rm(resolve(process.cwd(), "dist", "client", "assets", "maplibre-gl-worker.mjs"), { force: true });
+      const publicAssets = resolve(process.cwd(), "public", "assets");
+      const mapLibreDist = resolve(process.cwd(), "node_modules", "maplibre-gl", "dist");
+      await mkdir(publicAssets, { recursive: true });
+      await Promise.all([
+        copyFile(resolve(mapLibreDist, "maplibre-gl-worker.mjs"), resolve(publicAssets, "maplibre-gl-worker.mjs")),
+        copyFile(resolve(mapLibreDist, "maplibre-gl-shared.mjs"), resolve(publicAssets, "maplibre-gl-shared.mjs")),
+      ]);
     },
   };
 }
@@ -60,7 +66,7 @@ export default defineConfig(async () => {
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
     plugins: [
-      removeObsoleteMapAssets(),
+      prepareMapAssets(),
       vinext(),
       sites(),
       cloudflare({

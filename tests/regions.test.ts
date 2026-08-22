@@ -13,6 +13,7 @@ describe("учебный слой земель и областей Писани�
       "judea",
       "idumea",
       "decapolis",
+      "gadarenes",
       "transjordan",
       "moab",
     ]));
@@ -45,5 +46,8 @@ describe("учебный слой земель и областей Писани�
     expect(biblicalRegionById.get("canaan")?.scripture).toContain("Чис. 34");
     expect(biblicalRegionById.get("egypt")?.sourceNoteRu).toContain("дельте и долине Нила");
     expect(biblicalRegionById.get("decapolis")?.sourceNoteRu).toContain("не было областью с одной устойчивой административной границей");
+    expect(biblicalRegionById.get("gadarenes")?.scripture).toBe("Мк. 5:1–20; Лк. 8:26–39; Мф. 8:28–34");
+    expect(biblicalRegionById.get("gadarenes")?.sourceNoteRu).toContain("страну Гергесинскую");
+    expect(biblicalRegionById.get("gadarenes")?.sourceNoteRu).toContain("не является точной исторической границей");
   });
 });

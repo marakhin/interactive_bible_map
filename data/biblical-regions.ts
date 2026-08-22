@@ -48,6 +48,13 @@ const pleiades: BiblicalRegionSource = {
   licenseRu: "CC BY 3.0",
 };
 
+const pleiadesGadara: BiblicalRegionSource = {
+  titleRu: "Pleiades: Gadara/Pompeia",
+  roleRu: "опорная точка древней Гадары в северной Иордании; не источник готовой границы области",
+  url: "https://pleiades.stoa.org/places/678142",
+  licenseRu: "CC BY 3.0",
+};
+
 const holyLandSources = [shepherdPalestine, smithHolyLand, pleiades];
 
 export const biblicalRegions: BiblicalRegion[] = [
@@ -146,6 +153,18 @@ export const biblicalRegions: BiblicalRegion[] = [
     color: "#4f7c68",
     points: [[33.08, 35.55], [33.25, 35.82], [33.05, 36.18], [32.62, 36.25], [32.12, 36.15], [31.72, 35.88], [31.92, 35.62], [32.35, 35.55], [32.72, 35.58]],
     labelPoint: [32.48, 35.88],
+  },
+  {
+    id: "gadarenes",
+    nameRu: "страна Гадаринская",
+    scripture: "Мк. 5:1–20; Лк. 8:26–39; Мф. 8:28–34",
+    periodRu: "область новозаветного повествования; точная локализация спорна",
+    noteRu: schematicNote,
+    sourceNoteRu: "Контур показывает только условную область восточного и юго-восточного берега моря Галилейского вокруг опорной точки Гадары. Мк. 5:1–20 и Лк. 8:26–39 в локальном Синодальном тексте называют страну Гадаринскую, тогда как параллельный отрывок Мф. 8:28–34 — страну Гергесинскую; рукописные формы и современные локализации различаются, поэтому полигон не является точной исторической границей.",
+    sources: [shepherdPalestine, smithHolyLand, pleiadesGadara],
+    color: "#6f6b9a",
+    points: [[32.88, 35.62], [32.86, 35.78], [32.75, 35.88], [32.62, 35.86], [32.53, 35.74], [32.57, 35.60], [32.69, 35.56], [32.80, 35.57]],
+    labelPoint: [32.69, 35.72],
   },
   {
     id: "transjordan",

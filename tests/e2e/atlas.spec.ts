@@ -46,6 +46,26 @@ test("фильтр Нового Завета меняет состояние URL
   await expect(page).toHaveURL(/testament=NT/);
 });
 
+test("интерфейс ограничен Писанием без раздела Предания", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+
+  await page.goto("/?event=baptism-christ");
+  await expect(page.locator(".atlas-app")).toHaveAttribute("data-app-ready", "true");
+  const sheet = page.locator(".event-sheet");
+  await expect(sheet.getByRole("tab")).toHaveText(["Писание", "История", "География"]);
+  await expect(sheet.getByRole("tab", { name: "Предание" })).toHaveCount(0);
+  await sheet.getByRole("tab", { name: "География" }).click();
+  await expect(sheet).not.toContainText(/Предан|традиц|православ|Аль-Махтас/iu);
+  await expect(sheet.getByText("Точное место неизвестно")).toBeVisible();
+  await sheet.getByLabel("Закрыть", { exact: true }).click();
+
+  await page.getByRole("button", { name: "О проекте" }).click();
+  const about = page.getByRole("dialog", { name: "О проекте и источниках" });
+  await expect(about.getByText("Канон", { exact: true })).toBeVisible();
+  await expect(about.getByText("Корпус ограничен 66 книгами, общими для православных, католиков и протестантов.")).toBeVisible();
+  await expect(about.getByText("Предание", { exact: true })).toHaveCount(0);
+});
+
 test("книга ограничивает шкалу своими событиями, а диапазон меняется и перемещается", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await page.getByRole("button", { name: /От Марка/ }).click();
