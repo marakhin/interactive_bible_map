@@ -12,6 +12,8 @@ describe("режимы отображения карты", () => {
       activeBookId: undefined,
       activeEventId: undefined,
       eventSheetOpen: false,
+      studyOpen: false,
+      filtersOpen: false,
       timeRange: { start: -2200, end: 100 },
       timelineFocused: false,
       allPointsEnabled: false,
@@ -58,6 +60,15 @@ describe("режимы отображения карты", () => {
 
     useBibleStore.getState().selectEvent("abraham-call");
     expect(useBibleStore.getState().eventSheetOpen).toBe(true);
+  });
+
+  it("закрывает фильтры при открытии навигатора изучения", () => {
+    useBibleStore.getState().setFiltersOpen(true);
+    useBibleStore.getState().setStudyOpen(true);
+
+    const state = useBibleStore.getState();
+    expect(state.studyOpen).toBe(true);
+    expect(state.filtersOpen).toBe(false);
   });
 
   it("оставляет активным только последний фильтр книги или эпохи", () => {

@@ -59,10 +59,13 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
   const timeWindow = useBibleStore((state) => state.timeWindow);
   const timelineZoom = useBibleStore((state) => state.timelineZoom);
   const timelineFocused = useBibleStore((state) => state.timelineFocused);
+  const activeBookId = useBibleStore((state) => state.activeBookId);
+  const activeEventId = useBibleStore((state) => state.activeEventId);
   const setTimeRange = useBibleStore((state) => state.setTimeRange);
   const setTimeWindow = useBibleStore((state) => state.setTimeWindow);
   const setZoom = useBibleStore((state) => state.setZoom);
   const fitTimeline = useBibleStore((state) => state.fitTimeline);
+  const selectEvent = useBibleStore((state) => state.selectEvent);
   const trackRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const selectionEventKey = selectionKey ? events.map((event) => event.id).join("|") : "";
@@ -168,10 +171,14 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
   const endPercent = clamp(((timeRange.end - timeWindow.start) / windowSpan) * 100, 0, 100);
   const markerEvents = getTimelineEvents(events);
   const rangeLabel = `${formatBiblicalYear(timeRange.start)} — ${formatBiblicalYear(timeRange.end)}`;
+  const selectedBookEventIndex = Math.max(0, events.findIndex((event) => event.id === activeEventId));
+  const selectedBookEvent = activeBookId ? events[selectedBookEventIndex] : undefined;
+  const previousBookEvent = selectedBookEventIndex > 0 ? events[selectedBookEventIndex - 1] : undefined;
+  const nextBookEvent = selectedBookEventIndex < events.length - 1 ? events[selectedBookEventIndex + 1] : undefined;
 
   return (
     <section
-      className="timeline"
+      className={`timeline${activeBookId ? " book-selected" : ""}`}
       aria-label="Временная шкала"
       data-visible-events={events.length}
       data-dated-events={markerEvents.length}
@@ -188,6 +195,11 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
         const selected = timelineFocused && timeRange.start === era.start && timeRange.end === era.end;
         return <button key={era.id} aria-pressed={selected} onClick={() => selectEra({ start: era.start, end: era.end })}>{era.title}</button>;
       })}</div>
+      {selectedBookEvent && <nav className="mobile-book-event-nav" aria-label="События выбранной книги">
+        <button className="mobile-book-event-step" aria-label="Предыдущее событие книги" disabled={!previousBookEvent} onClick={() => previousBookEvent && selectEvent(previousBookEvent.id)}><ChevronLeft size={22} /></button>
+        <button className="mobile-book-event-current" data-event-id={selectedBookEvent.id} aria-label={`Открыть событие: ${selectedBookEvent.titleRu}`} onClick={() => selectEvent(selectedBookEvent.id)}><small>Событие книги</small><strong>{selectedBookEvent.titleRu}</strong></button>
+        <button className="mobile-book-event-step" aria-label="Следующее событие книги" disabled={!nextBookEvent} onClick={() => nextBookEvent && selectEvent(nextBookEvent.id)}><ChevronRight size={22} /></button>
+      </nav>}
       <div className="timeline-track-wrap">
         <div className="timeline-testament-label">ВЕТХИЙ ЗАВЕТ</div><div className="timeline-nt-label">НОВЫЙ ЗАВЕТ</div>
         <div className="timeline-track" ref={trackRef}>

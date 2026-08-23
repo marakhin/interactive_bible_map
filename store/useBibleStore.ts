@@ -106,7 +106,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
-  setStudyOpen: (studyOpen) => set({ studyOpen }),
+  setStudyOpen: (studyOpen) => set({ studyOpen, ...(studyOpen ? { filtersOpen: false } : {}) }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchMode: (searchMode) => set({ searchMode }),

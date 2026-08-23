@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, Info, MapPin, Pause, Share2, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, ChevronUp, Info, MapPin, Pause, Share2, Users, X } from "lucide-react";
 import { characterById } from "@/data/characters";
 import { eventById, events } from "@/data/events";
 import { interfaceLocationById } from "@/data/locations";
@@ -27,6 +27,7 @@ export function EventSheet() {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const dragRef = useRef<{ pointerId: number; startY: number; startedAt: number; offset: number } | null>(null);
   const dismissTimerRef = useRef<number | undefined>(undefined);
   const suppressHandleClickRef = useRef(false);
@@ -36,6 +37,7 @@ export function EventSheet() {
     setDragOffset(0);
     setIsDragging(false);
     setIsDismissing(false);
+    setSheetExpanded(false);
     dragRef.current = null;
     if (dismissTimerRef.current !== undefined) window.clearTimeout(dismissTimerRef.current);
   }, [activeEventId, eventSheetOpen]);
@@ -71,10 +73,10 @@ export function EventSheet() {
   const handlePointerMove = (pointerEvent: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== pointerEvent.pointerId) return;
-    const nextOffset = Math.max(0, pointerEvent.clientY - drag.startY);
+    const nextOffset = pointerEvent.clientY - drag.startY;
     drag.offset = nextOffset;
-    if (nextOffset > 6) suppressHandleClickRef.current = true;
-    setDragOffset(nextOffset);
+    if (Math.abs(nextOffset) > 6) suppressHandleClickRef.current = true;
+    setDragOffset(Math.max(0, nextOffset));
   };
 
   const handlePointerEnd = (pointerEvent: ReactPointerEvent<HTMLButtonElement>) => {
@@ -83,7 +85,10 @@ export function EventSheet() {
     const velocity = drag.offset / Math.max(performance.now() - drag.startedAt, 1);
     dragRef.current = null;
     setIsDragging(false);
-    if (drag.offset >= 72 || (drag.offset >= 24 && velocity >= 0.55)) finishDismiss();
+    if (!sheetExpanded && drag.offset <= -48) {
+      setSheetExpanded(true);
+      setDragOffset(0);
+    } else if (drag.offset >= 72 || (drag.offset >= 24 && velocity >= 0.55)) finishDismiss();
     else setDragOffset(0);
   };
 
@@ -95,9 +100,10 @@ export function EventSheet() {
 
   return (
     <aside
-      className={`event-sheet${storyPlaying ? " story-playing" : ""}${isDragging ? " is-dragging" : ""}${isDismissing ? " is-dismissing" : ""}`}
+      className={`event-sheet${storyPlaying ? " story-playing" : ""}${sheetExpanded ? " expanded" : ""}${isDragging ? " is-dragging" : ""}${isDismissing ? " is-dismissing" : ""}`}
       aria-label={`Событие: ${event.titleRu}`}
       data-sheet-drag-offset={Math.round(dragOffset)}
+      data-sheet-expanded={sheetExpanded ? "true" : "false"}
       style={{ "--sheet-drag-y": `${dragOffset}px` } as CSSProperties}
     >
       <div className="story-playback-summary" aria-live="polite">
@@ -114,16 +120,16 @@ export function EventSheet() {
       </div>
       <button
         className="sheet-handle"
-        aria-label="Закрыть карточку"
+        aria-label={sheetExpanded ? "Свернуть карточку" : "Развернуть карточку"}
         onClick={() => {
           if (suppressHandleClickRef.current) { suppressHandleClickRef.current = false; return; }
-          finishDismiss();
+          setSheetExpanded((expanded) => !expanded);
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerCancel}
-      ><ChevronDown size={19} /></button>
+      ><span>{sheetExpanded ? "Свернуть" : "Развернуть"}</span>{sheetExpanded ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button>
       <div className="event-sheet-head">
         <div><span className={`testament-badge ${event.testament.toLowerCase()}`}>{event.testament === "OT" ? "Ветхий Завет" : "Новый Завет"}</span><h2>{event.titleRu}</h2></div>
         <div className="sheet-head-actions"><button className="close-button" aria-label={bookmarkIds.includes(event.id) ? "Удалить из закладок" : "Добавить в закладки"} onClick={() => toggleBookmark(event.id)}><Bookmark size={20} fill={bookmarkIds.includes(event.id) ? "currentColor" : "none"} /></button><button className="close-button" aria-label="Закрыть" onClick={closeEventSheet}><X size={20} /></button></div>

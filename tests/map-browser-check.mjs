@@ -254,14 +254,19 @@ try {
   const densityMapStage = densityPage.locator('.map-stage');
   const densityLabelMinZoom = Number(await densityMapStage.getAttribute('data-label-min-zoom'));
   while (Number(await densityMapStage.getAttribute('data-map-zoom')) < densityLabelMinZoom - 1) {
+    const zoomBeforeStep = Number(await densityMapStage.getAttribute('data-map-zoom'));
     await densityPage.locator('.leaflet-control-zoom-in').click();
-    await densityPage.waitForTimeout(250);
+    await densityPage.waitForFunction((previousZoom) => Number(document.querySelector('.map-stage')?.getAttribute('data-map-zoom')) > previousZoom, zoomBeforeStep, { timeout: 5_000 });
   }
-  await densityPage.waitForTimeout(500);
-  const labelsBeforeThreshold = await densityPage.locator('.bible-map-tooltip').evaluateAll((labels) => labels.filter((label) => {
-    const rect = label.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
-  }).length);
+  let labelsBeforeThreshold = Number.POSITIVE_INFINITY;
+  const labelsSettledDeadline = Date.now() + 3_000;
+  do {
+    await densityPage.waitForTimeout(200);
+    labelsBeforeThreshold = await densityPage.locator('.bible-map-tooltip').evaluateAll((labels) => labels.filter((label) => {
+      const rect = label.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
+    }).length);
+  } while (labelsBeforeThreshold !== 1 && Date.now() < labelsSettledDeadline);
   if (labelsBeforeThreshold !== 1) throw new Error(`The selected dense-area label is not the only label visible before zoom ${densityLabelMinZoom}: ${labelsBeforeThreshold}`);
   await densityPage.screenshot({ path: resolve('.label-threshold-check.png'), fullPage: false });
   await densityPage.locator('.leaflet-control-zoom-in').click();

@@ -277,6 +277,36 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect((sheetBox?.y ?? 0) + (sheetBox?.height ?? 0)).toBeLessThanOrEqual((viewport?.height ?? 0) + 1);
 });
 
+test("мобильный навигатор книги скрывает фильтр под меню и переключает события", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile-safari"));
+
+  const studyMenu = page.getByLabel("Открыть выбор сюжета");
+  await studyMenu.click();
+  await expect(page.locator(".study-panel")).toHaveClass(/open/);
+  await expect(page.getByLabel("Фильтры")).toBeHidden();
+  if (testInfo.project.name === "mobile-safari") await page.screenshot({ path: ".study-panel-filter-hidden-check.png", fullPage: false });
+
+  const actsBook = page.locator('[data-book-id="acts"]');
+  await actsBook.scrollIntoViewIfNeeded();
+  await actsBook.click();
+
+  const bookNavigation = page.getByRole("navigation", { name: "События выбранной книги" });
+  await expect(bookNavigation).toBeVisible();
+  await expect(page.locator(".era-chips")).toBeHidden();
+  await expect(bookNavigation.locator(".mobile-book-event-current strong")).toHaveText("Вознесение Господне");
+  await expect(bookNavigation.getByLabel("Предыдущее событие книги")).toBeDisabled();
+  if (testInfo.project.name === "mobile-safari") {
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: ".book-event-nav-check.png", fullPage: false });
+  }
+
+  await bookNavigation.getByLabel("Следующее событие книги").click();
+  await expect(page.locator(".event-sheet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Сошествие Святого Духа на апостолов" })).toBeVisible();
+  await expect(bookNavigation.locator(".mobile-book-event-current strong")).toHaveText("Сошествие Святого Духа на апостолов");
+  await expect(page).toHaveURL(/book=acts/);
+});
+
 test("мобильная карточка Самарии скрывается свайпом и оставляет точку выбранной", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile-safari"));
 
@@ -292,20 +322,37 @@ test("мобильная карточка Самарии скрывается с
   const sheet = page.locator(".event-sheet");
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Благовестие в Самарии" })).toBeVisible();
+  await expect(sheet).toHaveAttribute("data-sheet-expanded", "false");
   const compactHeaderHeight = await sheet.evaluate((element) => {
     const handle = element.querySelector<HTMLElement>(".sheet-handle")?.getBoundingClientRect();
     const meta = element.querySelector<HTMLElement>(".event-meta")?.getBoundingClientRect();
     return (meta?.bottom ?? 0) - (handle?.top ?? 0);
   });
-  expect(compactHeaderHeight).toBeLessThanOrEqual(125);
+  expect(compactHeaderHeight).toBeLessThanOrEqual(140);
 
   const map = page.locator(".map-stage");
   const zoomBeforeDismiss = await map.getAttribute("data-map-zoom");
+  const handle = sheet.locator(".sheet-handle");
+  await expect(handle).toHaveAccessibleName("Развернуть карточку");
+  if (!testInfo.project.name.includes("landscape")) {
+    const collapsedGeometry = await sheet.evaluate((element) => ({
+      height: element.getBoundingClientRect().height,
+      viewportHeight: window.innerHeight,
+    }));
+    expect(collapsedGeometry.height / collapsedGeometry.viewportHeight).toBeGreaterThanOrEqual(0.44);
+    expect(collapsedGeometry.height / collapsedGeometry.viewportHeight).toBeLessThanOrEqual(0.58);
+  }
   if (testInfo.project.name === "mobile-safari") {
     await page.waitForTimeout(350);
     await page.screenshot({ path: ".event-sheet-mobile-check.png", fullPage: false });
   }
-  const handle = page.getByLabel("Закрыть карточку");
+  if (!testInfo.project.name.includes("landscape")) {
+    await handle.click();
+    await expect(sheet).toHaveAttribute("data-sheet-expanded", "true");
+    await expect(handle).toHaveAccessibleName("Свернуть карточку");
+    await expect.poll(() => sheet.evaluate((element) => element.getBoundingClientRect().height / window.innerHeight)).toBeGreaterThanOrEqual(0.7);
+    if (testInfo.project.name === "mobile-safari") await page.screenshot({ path: ".event-sheet-expanded-check.png", fullPage: false });
+  }
   const handleBox = await handle.boundingBox();
   expect(handleBox).not.toBeNull();
   const pointerX = (handleBox?.x ?? 0) + (handleBox?.width ?? 0) / 2;
@@ -373,8 +420,12 @@ test("на мобильном действует последний выбран
   await luke.scrollIntoViewIfNeeded();
   await luke.click();
   await expect(page).toHaveURL(/book=luke/);
-  await expect(era).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".era-chips")).toBeHidden();
+  await expect(page.getByRole("navigation", { name: "События выбранной книги" })).toBeVisible();
 
+  await page.getByLabel("Открыть выбор сюжета").click();
+  await page.getByRole("button", { name: "Показать все точки без фильтров" }).click();
+  await expect(era).toBeVisible();
   await era.scrollIntoViewIfNeeded();
   await era.click();
   await expect(era).toHaveAttribute("aria-pressed", "true");
