@@ -277,18 +277,50 @@ test("мобильный Safari сохраняет интерфейс внутр
   expect((sheetBox?.y ?? 0) + (sheetBox?.height ?? 0)).toBeLessThanOrEqual((viewport?.height ?? 0) + 1);
 });
 
-test("мобильная подпись места открывает событие", async ({ page }, testInfo) => {
+test("мобильная карточка Самарии скрывается свайпом и оставляет точку выбранной", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile-safari"));
 
-  const hebronMarker = page.locator('[data-location-id="hebron"]');
-  await expect(hebronMarker).toBeVisible();
-  await hebronMarker.dispatchEvent("click");
+  const studyMenu = page.getByLabel("Открыть выбор сюжета");
+  await studyMenu.click();
+  const actsBook = page.locator('[data-book-id="acts"]');
+  await actsBook.scrollIntoViewIfNeeded();
+  await actsBook.click();
+  await studyMenu.click();
+  const samariaEvent = page.locator('.event-rail [data-event-id="gospel-samaria"]');
+  await samariaEvent.scrollIntoViewIfNeeded();
+  await samariaEvent.click();
   const sheet = page.locator(".event-sheet");
   await expect(sheet).toBeVisible();
-  await page.getByLabel("Закрыть карточку").click();
-  await expect(sheet).toBeHidden();
+  await expect(sheet.getByRole("heading", { name: "Благовестие в Самарии" })).toBeVisible();
+  const compactHeaderHeight = await sheet.evaluate((element) => {
+    const handle = element.querySelector<HTMLElement>(".sheet-handle")?.getBoundingClientRect();
+    const meta = element.querySelector<HTMLElement>(".event-meta")?.getBoundingClientRect();
+    return (meta?.bottom ?? 0) - (handle?.top ?? 0);
+  });
+  expect(compactHeaderHeight).toBeLessThanOrEqual(125);
 
   const map = page.locator(".map-stage");
+  const zoomBeforeDismiss = await map.getAttribute("data-map-zoom");
+  if (testInfo.project.name === "mobile-safari") {
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: ".event-sheet-mobile-check.png", fullPage: false });
+  }
+  const handle = page.getByLabel("Закрыть карточку");
+  const handleBox = await handle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  const pointerX = (handleBox?.x ?? 0) + (handleBox?.width ?? 0) / 2;
+  const pointerY = (handleBox?.y ?? 0) + (handleBox?.height ?? 0) / 2;
+  await handle.dispatchEvent("pointerdown", { pointerId: 17, pointerType: "touch", isPrimary: true, clientX: pointerX, clientY: pointerY });
+  await handle.dispatchEvent("pointermove", { pointerId: 17, pointerType: "touch", isPrimary: true, clientX: pointerX, clientY: pointerY + 110 });
+  await expect(sheet).toHaveAttribute("data-sheet-drag-offset", "110");
+  await handle.dispatchEvent("pointerup", { pointerId: 17, pointerType: "touch", isPrimary: true, clientX: pointerX, clientY: pointerY + 110 });
+  await expect(sheet).toBeHidden();
+  await expect(map).toHaveAttribute("data-map-zoom", zoomBeforeDismiss ?? "");
+  await expect(page.locator('[data-location-id="samaria"]')).toHaveClass(/active/);
+  const selectedTooltip = page.getByRole("button", { name: "Открыть события места Самария" });
+  await expect(selectedTooltip).toBeVisible();
+  if (testInfo.project.name === "mobile-safari") await page.screenshot({ path: ".event-sheet-dismissed-check.png", fullPage: false });
+
   let currentZoom = Number(await map.getAttribute("data-map-zoom"));
   const labelMinZoom = Number(await map.getAttribute("data-label-min-zoom"));
   expect(labelMinZoom).toBeGreaterThanOrEqual(11);
@@ -316,15 +348,15 @@ test("мобильная подпись места открывает событ
   });
   expect(overlappingLabels).toEqual([]);
 
-  const hebronTooltip = page.getByRole("button", { name: "Открыть события места Хеврон" });
-  await expect(hebronTooltip).toBeAttached();
-  const tooltipInteraction = await hebronTooltip.evaluate((element) => ({
+  const samariaTooltip = page.getByRole("button", { name: "Открыть события места Самария" });
+  await expect(samariaTooltip).toBeAttached();
+  const tooltipInteraction = await samariaTooltip.evaluate((element) => ({
     pointerEvents: getComputedStyle(element).pointerEvents,
     touchAction: getComputedStyle(element).touchAction,
     tabIndex: (element as HTMLElement).tabIndex,
   }));
   expect(tooltipInteraction).toEqual({ pointerEvents: "auto", touchAction: "manipulation", tabIndex: 0 });
-  await hebronTooltip.dispatchEvent("pointerup", { pointerType: "touch" });
+  await samariaTooltip.dispatchEvent("pointerup", { pointerType: "touch" });
   await expect(sheet).toBeVisible();
 });
 

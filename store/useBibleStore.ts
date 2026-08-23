@@ -28,6 +28,7 @@ interface BibleState {
   filtersOpen: boolean;
   searchQuery: string;
   searchMode: SearchMode;
+  eventSheetOpen: boolean;
   sheetTab: "scripture" | "history" | "geography";
   bookmarkIds: string[];
   storyPlaying: boolean;
@@ -47,6 +48,7 @@ interface BibleState {
   setFiltersOpen: (value: boolean) => void;
   setSearchQuery: (value: string) => void;
   setSearchMode: (value: SearchMode) => void;
+  closeEventSheet: () => void;
   setSheetTab: (value: BibleState["sheetTab"]) => void;
   setBookmarks: (ids: string[]) => void;
   toggleBookmark: (id: string) => void;
@@ -77,6 +79,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   filtersOpen: false,
   searchQuery: "",
   searchMode: "all",
+  eventSheetOpen: false,
   sheetTab: "scripture",
   bookmarkIds: [],
   storyPlaying: false,
@@ -90,28 +93,30 @@ export const useBibleStore = create<BibleState>((set) => ({
     activeLocationId: undefined,
     activeBookId: undefined,
     activeEventId: undefined,
+    eventSheetOpen: false,
     allPointsEnabled: false,
     storyPlaying: false,
   }),
   setTimeWindow: (timeWindow) => set({ timeWindow }),
   setZoom: (timelineZoom) => set({ timelineZoom }),
   fitTimeline: (timeWindow, timelineZoom, timeRange) => set({ timeWindow, timelineZoom, timeRange, timelineFocused: false }),
-  selectEvent: (activeEventId) => set({ activeEventId, sheetTab: "scripture" }),
-  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
-  selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
-  selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
-  selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectEvent: (activeEventId) => set({ activeEventId, eventSheetOpen: Boolean(activeEventId), sheetTab: "scripture" }),
+  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setStudyOpen: (studyOpen) => set({ studyOpen }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchMode: (searchMode) => set({ searchMode }),
+  closeEventSheet: () => set({ eventSheetOpen: false }),
   setSheetTab: (sheetTab) => set({ sheetTab }),
   setBookmarks: (bookmarkIds) => set({ bookmarkIds }),
   toggleBookmark: (id) => set((state) => ({ bookmarkIds: state.bookmarkIds.includes(id) ? state.bookmarkIds.filter((item) => item !== id) : [...state.bookmarkIds, id] })),
   setStoryPlaying: (storyPlaying) => set({ storyPlaying }),
   setStorySpeed: (storySpeed) => set({ storySpeed }),
-  showAllPoints: () => set({ testamentFilter: "ALL", activeStorylineId: undefined, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, timelineFocused: false, allPointsEnabled: true, storyPlaying: false }),
+  showAllPoints: () => set({ testamentFilter: "ALL", activeStorylineId: undefined, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: true, storyPlaying: false }),
   toggleRegions: () => set((state) => ({ historicalRegionsEnabled: !state.historicalRegionsEnabled })),
   toggleHistoricalRegion: (id) => set((state) => ({
     selectedHistoricalRegionIds: state.selectedHistoricalRegionIds.includes(id)

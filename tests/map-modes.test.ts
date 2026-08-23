@@ -11,6 +11,7 @@ describe("режимы отображения карты", () => {
       activeLocationId: undefined,
       activeBookId: undefined,
       activeEventId: undefined,
+      eventSheetOpen: false,
       timeRange: { start: -2200, end: 100 },
       timelineFocused: false,
       allPointsEnabled: false,
@@ -45,6 +46,18 @@ describe("режимы отображения карты", () => {
     expect(state.timeRange).toEqual({ start: -600, end: -500 });
     expect(state.timelineFocused).toBe(true);
     expect(state.allPointsEnabled).toBe(false);
+  });
+
+  it("скрывает карточку, сохраняя выбранную точку, и повторно открывает её", () => {
+    useBibleStore.getState().selectEvent("abraham-call");
+    expect(useBibleStore.getState().eventSheetOpen).toBe(true);
+
+    useBibleStore.getState().closeEventSheet();
+    expect(useBibleStore.getState().activeEventId).toBe("abraham-call");
+    expect(useBibleStore.getState().eventSheetOpen).toBe(false);
+
+    useBibleStore.getState().selectEvent("abraham-call");
+    expect(useBibleStore.getState().eventSheetOpen).toBe(true);
   });
 
   it("оставляет активным только последний фильтр книги или эпохи", () => {

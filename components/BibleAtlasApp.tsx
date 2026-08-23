@@ -49,7 +49,7 @@ export default function BibleAtlasApp() {
     setReady(true);
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); state.setSearchOpen(true); }
-      if (event.key === "Escape") { state.selectEvent(undefined); state.setSearchOpen(false); state.setFiltersOpen(false); }
+      if (event.key === "Escape") { state.closeEventSheet(); state.setSearchOpen(false); state.setFiltersOpen(false); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

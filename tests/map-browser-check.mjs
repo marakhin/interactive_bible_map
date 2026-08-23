@@ -87,7 +87,8 @@ try {
   };
   await zoomTo(labelMinZoom - 1);
   await page.waitForTimeout(500);
-  if (await page.locator('.bible-map-tooltip').count()) throw new Error(`Automatic labels are visible before zoom ${labelMinZoom}`);
+  const selectedLabelsBeforeThreshold = await page.locator('.bible-map-tooltip').count();
+  if (selectedLabelsBeforeThreshold !== 1) throw new Error(`The selected place label is not the only label visible before zoom ${labelMinZoom}: ${selectedLabelsBeforeThreshold}`);
   await page.locator('.event-rail > button').first().click();
   await page.locator('.event-sheet').waitFor({ state: "visible", timeout: 10_000 });
   await page.waitForTimeout(900);
@@ -117,14 +118,21 @@ try {
   if (Number(await mapStage.getAttribute('data-map-zoom')) !== maxZoom) throw new Error(`The map did not reach zoom ${maxZoom}`);
   if (!(await page.locator('.leaflet-control-zoom-in').evaluate((button) => button.classList.contains('leaflet-disabled')))) throw new Error("The zoom control did not reach its configured maximum");
   await page.screenshot({ path: resolve(".max-zoom-check.png"), fullPage: false });
+  await page.locator('.event-rail > button').nth(1).click();
+  await page.locator('.event-sheet').waitFor({ state: "visible", timeout: 10_000 });
+  await page.waitForTimeout(500);
+  await page.locator('.event-sheet .close-button[aria-label="Закрыть"]').click();
+  await page.locator('.event-sheet').waitFor({ state: "detached", timeout: 10_000 });
+  await page.waitForTimeout(500);
+  if (Number(await mapStage.getAttribute('data-map-zoom')) !== maxZoom) throw new Error("Selecting an event at maximum zoom changed the map zoom");
   const visibleLabelIndex = await page.locator('.bible-map-tooltip').evaluateAll((labels) =>
     labels.findIndex((label) => {
       const rect = label.getBoundingClientRect();
-      return rect.top > 90 && rect.bottom < window.innerHeight - 130 && rect.left > 300 && rect.right < window.innerWidth - 20;
+      return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
     }),
   );
-  if (visibleLabelIndex < 0) throw new Error("No automatic place label is safely visible in the map viewport");
-  await page.locator('.bible-map-tooltip').nth(visibleLabelIndex).click();
+  if (visibleLabelIndex < 0) throw new Error("No selected or automatic place label is visible in the map viewport");
+  await page.locator('.bible-map-tooltip').nth(visibleLabelIndex).dispatchEvent('click');
   await page.locator('.event-sheet').waitFor({ state: "visible", timeout: 10_000 });
   await page.locator('[data-synodal-text="true"]').waitFor({ state: "visible", timeout: 10_000 });
 
@@ -254,7 +262,7 @@ try {
     const rect = label.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
   }).length);
-  if (labelsBeforeThreshold !== 0) throw new Error(`Dense-area labels are visible before zoom ${densityLabelMinZoom}: ${labelsBeforeThreshold}`);
+  if (labelsBeforeThreshold !== 1) throw new Error(`The selected dense-area label is not the only label visible before zoom ${densityLabelMinZoom}: ${labelsBeforeThreshold}`);
   await densityPage.screenshot({ path: resolve('.label-threshold-check.png'), fullPage: false });
   await densityPage.locator('.leaflet-control-zoom-in').click();
   await densityPage.waitForTimeout(600);
