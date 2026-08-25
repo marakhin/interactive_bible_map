@@ -60,6 +60,7 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
   const timelineZoom = useBibleStore((state) => state.timelineZoom);
   const timelineFocused = useBibleStore((state) => state.timelineFocused);
   const activeBookId = useBibleStore((state) => state.activeBookId);
+  const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
   const activeEventId = useBibleStore((state) => state.activeEventId);
   const setTimeRange = useBibleStore((state) => state.setTimeRange);
   const setTimeWindow = useBibleStore((state) => state.setTimeWindow);
@@ -172,14 +173,29 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
   const endPercent = clamp(((timeRange.end - timeWindow.start) / windowSpan) * 100, 0, 100);
   const markerEvents = getTimelineEvents(events);
   const rangeLabel = `${formatBiblicalYear(timeRange.start)} — ${formatBiblicalYear(timeRange.end)}`;
-  const selectedBookEventIndex = Math.max(0, events.findIndex((event) => event.id === activeEventId));
-  const selectedBookEvent = activeBookId ? events[selectedBookEventIndex] : undefined;
-  const previousBookEvent = selectedBookEventIndex > 0 ? events[selectedBookEventIndex - 1] : undefined;
-  const nextBookEvent = selectedBookEventIndex < events.length - 1 ? events[selectedBookEventIndex + 1] : undefined;
+  const eventNavigationContext = activeBookId
+    ? {
+        label: "События выбранной книги",
+        previousLabel: "Предыдущее событие книги",
+        nextLabel: "Следующее событие книги",
+        eyebrow: "Событие книги · открыть подробности",
+      }
+    : activeStorylineId
+      ? {
+          label: "События выбранной сюжетной линии",
+          previousLabel: "Предыдущее событие сюжетной линии",
+          nextLabel: "Следующее событие сюжетной линии",
+          eyebrow: "Событие сюжета · открыть подробности",
+        }
+      : undefined;
+  const selectedCollectionEventIndex = Math.max(0, events.findIndex((event) => event.id === activeEventId));
+  const selectedCollectionEvent = eventNavigationContext ? events[selectedCollectionEventIndex] : undefined;
+  const previousCollectionEvent = selectedCollectionEventIndex > 0 ? events[selectedCollectionEventIndex - 1] : undefined;
+  const nextCollectionEvent = selectedCollectionEventIndex < events.length - 1 ? events[selectedCollectionEventIndex + 1] : undefined;
 
   return (
     <section
-      className={`timeline${activeBookId ? " book-selected" : ""}`}
+      className={`timeline${selectedCollectionEvent ? " event-collection-selected" : ""}`}
       aria-label="Временная шкала"
       data-visible-events={events.length}
       data-dated-events={markerEvents.length}
@@ -196,10 +212,10 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
         const selected = timelineFocused && timeRange.start === era.start && timeRange.end === era.end;
         return <button key={era.id} aria-pressed={selected} onClick={() => selectEra({ start: era.start, end: era.end })}>{era.title}</button>;
       })}</div>
-      {selectedBookEvent && <nav className="mobile-book-event-nav" aria-label="События выбранной книги">
-        <button className="mobile-book-event-step" aria-label="Предыдущее событие книги" disabled={!previousBookEvent} onClick={() => previousBookEvent && focusEvent(previousBookEvent.id)}><ChevronLeft size={22} /></button>
-        <button className="mobile-book-event-current" data-event-id={selectedBookEvent.id} aria-label={`Открыть подробности события: ${selectedBookEvent.titleRu}`} onClick={() => selectEvent(selectedBookEvent.id)}><small>Событие книги · открыть подробности</small><strong>{selectedBookEvent.titleRu}</strong></button>
-        <button className="mobile-book-event-step" aria-label="Следующее событие книги" disabled={!nextBookEvent} onClick={() => nextBookEvent && focusEvent(nextBookEvent.id)}><ChevronRight size={22} /></button>
+      {selectedCollectionEvent && eventNavigationContext && <nav className="mobile-book-event-nav" aria-label={eventNavigationContext.label}>
+        <button className="mobile-book-event-step" aria-label={eventNavigationContext.previousLabel} disabled={!previousCollectionEvent} onClick={() => previousCollectionEvent && focusEvent(previousCollectionEvent.id)}><ChevronLeft size={22} /></button>
+        <button className="mobile-book-event-current" data-event-id={selectedCollectionEvent.id} aria-label={`Открыть подробности события: ${selectedCollectionEvent.titleRu}`} onClick={() => selectEvent(selectedCollectionEvent.id)}><small>{eventNavigationContext.eyebrow}</small><strong>{selectedCollectionEvent.titleRu}</strong></button>
+        <button className="mobile-book-event-step" aria-label={eventNavigationContext.nextLabel} disabled={!nextCollectionEvent} onClick={() => nextCollectionEvent && focusEvent(nextCollectionEvent.id)}><ChevronRight size={22} /></button>
       </nav>}
       <div className="timeline-track-wrap">
         <div className="timeline-testament-label">ВЕТХИЙ ЗАВЕТ</div><div className="timeline-nt-label">НОВЫЙ ЗАВЕТ</div>

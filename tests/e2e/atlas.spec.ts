@@ -319,6 +319,37 @@ test("мобильный навигатор книги скрывает филь
   await expect(page).toHaveURL(/book=acts/);
 });
 
+test("мобильный навигатор сюжетной линии переключает только её события", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile-safari"));
+
+  const studyMenu = page.getByLabel("Открыть выбор сюжета");
+  await studyMenu.click();
+  await page.getByRole("button", { name: /Путь Авраама/ }).first().click();
+
+  const storyNavigation = page.getByRole("navigation", { name: "События выбранной сюжетной линии" });
+  await expect(storyNavigation).toBeVisible();
+  await expect(page.locator(".era-chips")).toBeHidden();
+  await expect(storyNavigation.locator(".mobile-book-event-current strong")).toHaveText("Семья Фарры выходит из Ура");
+  await expect(storyNavigation.locator(".mobile-book-event-current small")).toHaveText("Событие сюжета · открыть подробности");
+  await expect(storyNavigation.getByLabel("Предыдущее событие сюжетной линии")).toBeDisabled();
+
+  await storyNavigation.getByLabel("Следующее событие сюжетной линии").click();
+  await expect(page.locator(".event-sheet")).toBeHidden();
+  await expect(storyNavigation.locator(".mobile-book-event-current strong")).toHaveText("Призвание Аврама");
+  await expect(page.locator('.bible-marker-dot.active[data-location-id="harran"][data-event-ids~="abraham-call"]')).toBeAttached();
+  await expect(page).toHaveURL(/story=abraham/);
+
+  await storyNavigation.getByLabel("Предыдущее событие сюжетной линии").click();
+  await expect(page.locator(".event-sheet")).toBeHidden();
+  await expect(storyNavigation.locator(".mobile-book-event-current strong")).toHaveText("Семья Фарры выходит из Ура");
+  await expect(page.locator('.bible-marker-dot.active[data-location-id="ur"][data-event-ids~="terah-leaves-ur"]')).toBeAttached();
+
+  await storyNavigation.locator(".mobile-book-event-current").click();
+  await expect(page.locator(".event-sheet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Семья Фарры выходит из Ура" })).toBeVisible();
+  await expect(page).toHaveURL(/story=abraham/);
+});
+
 test("выбранное Преображение получает условную точку на мобильной карте", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile-safari"));
 
