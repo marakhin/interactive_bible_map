@@ -39,6 +39,7 @@ interface BibleState {
   setZoom: (zoom: number) => void;
   fitTimeline: (window: TimeRange, zoom: number, range: TimeRange) => void;
   selectEvent: (id?: string) => void;
+  focusEvent: (id?: string) => void;
   selectStoryline: (id?: string) => void;
   selectCharacter: (id?: string) => void;
   selectLocation: (id?: string) => void;
@@ -101,6 +102,7 @@ export const useBibleStore = create<BibleState>((set) => ({
   setZoom: (timelineZoom) => set({ timelineZoom }),
   fitTimeline: (timeWindow, timelineZoom, timeRange) => set({ timeWindow, timelineZoom, timeRange, timelineFocused: false }),
   selectEvent: (activeEventId) => set({ activeEventId, eventSheetOpen: Boolean(activeEventId), sheetTab: "scripture" }),
+  focusEvent: (activeEventId) => set({ activeEventId, eventSheetOpen: false }),
   selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),

@@ -64,14 +64,20 @@ try {
     await page.locator(".event-meta button", { hasText: locationTitle }).waitFor({ state: "visible", timeout: 10_000 });
     await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).waitFor({ state: "attached", timeout: 10_000 });
   }
-  const scriptureOnlyLocationChecks = [
+  const selectedOrientationPointChecks = [
     ["Крещение Господне", "Иордан", "jordan"],
+    ["Преображение Господне", "гора Преображения", "mount-tabor"],
     ["Распятие Господа Иисуса Христа", "Голгофа", "golgotha"],
   ];
-  for (const [eventTitle, locationTitle, locationId] of scriptureOnlyLocationChecks) {
+  for (const [eventTitle, locationTitle, locationId] of selectedOrientationPointChecks) {
     await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
     await page.locator(".event-meta button", { hasText: locationTitle }).waitFor({ state: "visible", timeout: 10_000 });
-    if (await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).count()) throw new Error(`${eventTitle} still uses a tradition-based marker`);
+    const marker = page.locator(`.bible-marker-dot.active.selection-fallback[data-location-id="${locationId}"]`);
+    await marker.waitFor({ state: "attached", timeout: 10_000 });
+    if (await marker.getAttribute("data-location-display") !== "selection-fallback") throw new Error(`${eventTitle} is not marked as an orientation point`);
+    if (await marker.getAttribute("data-localization-type") !== "traditional") throw new Error(`${eventTitle} lost its traditional localization status`);
+    const tooltipText = await page.locator(".bible-map-tooltip").filter({ hasText: locationTitle }).textContent();
+    if (!tooltipText?.includes("Традиционная локализация") || !tooltipText.includes("условный ориентир")) throw new Error(`${eventTitle} does not explain the orientation point: ${tooltipText}`);
     await page.getByRole("tab", { name: "География" }).click();
     const geographyText = await page.locator(".event-sheet").textContent();
     if (/Предан|традиц|православ|Аль-Махтас/iu.test(geographyText ?? "")) throw new Error(`${eventTitle} exposes tradition in Geography: ${geographyText}`);
@@ -222,7 +228,6 @@ try {
   await page.screenshot({ path: resolve(".book-route-check.png"), fullPage: false });
 
   await page.getByRole("button", { name: "Показать все точки без фильтров" }).click();
-  await page.locator(".all-points-study", { hasText: "Все точки Писания" }).waitFor({ state: "visible", timeout: 10_000 });
   await page.waitForTimeout(1000);
   const allMarkers = await page.locator(".bible-marker-dot").count();
   const routes = await page.locator(".biblical-route-line").count();

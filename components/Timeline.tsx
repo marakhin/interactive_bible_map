@@ -66,6 +66,7 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
   const setZoom = useBibleStore((state) => state.setZoom);
   const fitTimeline = useBibleStore((state) => state.fitTimeline);
   const selectEvent = useBibleStore((state) => state.selectEvent);
+  const focusEvent = useBibleStore((state) => state.focusEvent);
   const trackRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const selectionEventKey = selectionKey ? events.map((event) => event.id).join("|") : "";
@@ -196,9 +197,9 @@ export function Timeline({ events, selectionKey }: { events: BibleEvent[]; selec
         return <button key={era.id} aria-pressed={selected} onClick={() => selectEra({ start: era.start, end: era.end })}>{era.title}</button>;
       })}</div>
       {selectedBookEvent && <nav className="mobile-book-event-nav" aria-label="События выбранной книги">
-        <button className="mobile-book-event-step" aria-label="Предыдущее событие книги" disabled={!previousBookEvent} onClick={() => previousBookEvent && selectEvent(previousBookEvent.id)}><ChevronLeft size={22} /></button>
-        <button className="mobile-book-event-current" data-event-id={selectedBookEvent.id} aria-label={`Открыть событие: ${selectedBookEvent.titleRu}`} onClick={() => selectEvent(selectedBookEvent.id)}><small>Событие книги</small><strong>{selectedBookEvent.titleRu}</strong></button>
-        <button className="mobile-book-event-step" aria-label="Следующее событие книги" disabled={!nextBookEvent} onClick={() => nextBookEvent && selectEvent(nextBookEvent.id)}><ChevronRight size={22} /></button>
+        <button className="mobile-book-event-step" aria-label="Предыдущее событие книги" disabled={!previousBookEvent} onClick={() => previousBookEvent && focusEvent(previousBookEvent.id)}><ChevronLeft size={22} /></button>
+        <button className="mobile-book-event-current" data-event-id={selectedBookEvent.id} aria-label={`Открыть подробности события: ${selectedBookEvent.titleRu}`} onClick={() => selectEvent(selectedBookEvent.id)}><small>Событие книги · открыть подробности</small><strong>{selectedBookEvent.titleRu}</strong></button>
+        <button className="mobile-book-event-step" aria-label="Следующее событие книги" disabled={!nextBookEvent} onClick={() => nextBookEvent && focusEvent(nextBookEvent.id)}><ChevronRight size={22} /></button>
       </nav>}
       <div className="timeline-track-wrap">
         <div className="timeline-testament-label">ВЕТХИЙ ЗАВЕТ</div><div className="timeline-nt-label">НОВЫЙ ЗАВЕТ</div>

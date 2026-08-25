@@ -284,6 +284,8 @@ test("мобильный навигатор книги скрывает филь
   await studyMenu.click();
   await expect(page.locator(".study-panel")).toHaveClass(/open/);
   await expect(page.getByLabel("Фильтры")).toBeHidden();
+  await expect(page.locator(".all-points-study")).toHaveCount(0);
+  await expect(page.locator(".featured-study")).toHaveCount(0);
   if (testInfo.project.name === "mobile-safari") await page.screenshot({ path: ".study-panel-filter-hidden-check.png", fullPage: false });
 
   const actsBook = page.locator('[data-book-id="acts"]');
@@ -294,6 +296,7 @@ test("мобильный навигатор книги скрывает филь
   await expect(bookNavigation).toBeVisible();
   await expect(page.locator(".era-chips")).toBeHidden();
   await expect(bookNavigation.locator(".mobile-book-event-current strong")).toHaveText("Вознесение Господне");
+  await expect(bookNavigation.locator(".mobile-book-event-current small")).toHaveText("Событие книги · открыть подробности");
   await expect(bookNavigation.getByLabel("Предыдущее событие книги")).toBeDisabled();
   if (testInfo.project.name === "mobile-safari") {
     await page.waitForTimeout(350);
@@ -301,10 +304,40 @@ test("мобильный навигатор книги скрывает филь
   }
 
   await bookNavigation.getByLabel("Следующее событие книги").click();
-  await expect(page.locator(".event-sheet")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Сошествие Святого Духа на апостолов" })).toBeVisible();
+  await expect(page.locator(".event-sheet")).toBeHidden();
   await expect(bookNavigation.locator(".mobile-book-event-current strong")).toHaveText("Сошествие Святого Духа на апостолов");
+  await expect(page.locator('.bible-marker-dot.active[data-location-id="jerusalem"][data-event-ids~="pentecost"]')).toBeAttached();
+
+  await bookNavigation.getByLabel("Предыдущее событие книги").click();
+  await expect(page.locator(".event-sheet")).toBeHidden();
+  await expect(bookNavigation.locator(".mobile-book-event-current strong")).toHaveText("Вознесение Господне");
+  await expect(page.locator('.bible-marker-dot.active[data-location-id="mount-olives"][data-event-ids~="ascension"]')).toBeAttached();
+
+  await bookNavigation.locator(".mobile-book-event-current").click();
+  await expect(page.locator(".event-sheet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Вознесение Господне" })).toBeVisible();
   await expect(page).toHaveURL(/book=acts/);
+});
+
+test("выбранное Преображение получает условную точку на мобильной карте", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile-safari"));
+
+  const studyMenu = page.getByLabel("Открыть выбор сюжета");
+  await studyMenu.click();
+  const markBook = page.locator('[data-book-id="mark"]');
+  await markBook.scrollIntoViewIfNeeded();
+  await markBook.click();
+  await studyMenu.click();
+  const transfiguration = page.locator('.event-rail [data-event-id="transfiguration"]');
+  await transfiguration.scrollIntoViewIfNeeded();
+  await transfiguration.click();
+
+  await expect(page.getByRole("heading", { name: "Преображение Господне" })).toBeVisible();
+  const marker = page.locator('.bible-marker-dot.active.selection-fallback[data-location-id="mount-tabor"]');
+  await expect(marker).toBeAttached();
+  await expect(marker).toHaveAttribute("data-location-display", "selection-fallback");
+  await expect(marker).toHaveAttribute("data-localization-type", "traditional");
+  await expect(page.getByRole("button", { name: "Открыть события места гора Преображения" })).toContainText("условный ориентир");
 });
 
 test("мобильная карточка Самарии скрывается свайпом и оставляет точку выбранной", async ({ page }, testInfo) => {

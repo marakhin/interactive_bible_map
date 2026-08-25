@@ -5,13 +5,13 @@ import { LocateFixed } from "lucide-react";
 import type * as Leaflet from "leaflet";
 import type { ErrorEvent as MapLibreErrorEvent, Map as MapLibreMap } from "maplibre-gl";
 import { biblicalRegions, type BiblicalRegion } from "@/data/biblical-regions";
-import { events } from "@/data/events";
+import { eventById } from "@/data/events";
 import biblicalRivers from "@/data/biblical-rivers.json";
-import { interfaceLocationById } from "@/data/locations";
+import { interfaceLocationById, locationById } from "@/data/locations";
 import { storylineById } from "@/data/storylines";
-import { getPrimaryEventLocation } from "@/domain/event-locations";
+import { getPrimaryEventLocation, getSelectedEventLocation } from "@/domain/event-locations";
 import { getSequentialRoutePoints } from "@/domain/map-route";
-import type { BibleEvent, BibleLocation } from "@/domain/types";
+import { localizationLabels, type BibleEvent, type BibleLocation } from "@/domain/types";
 import { useBibleStore } from "@/store/useBibleStore";
 import { FiltersPanel } from "./FiltersPanel";
 
@@ -35,6 +35,7 @@ type BibleMapProps = {
 type LocatedMarker = {
   location: BibleLocation;
   events: BibleEvent[];
+  usesSelectionFallback: boolean;
 };
 
 type MapLibreLeafletLayer = Leaflet.Layer & {
@@ -117,6 +118,7 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
   const activeEventId = useBibleStore((state) => state.activeEventId);
   const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
   const activeCharacterId = useBibleStore((state) => state.activeCharacterId);
+  const activeLocationId = useBibleStore((state) => state.activeLocationId);
   const activeBookId = useBibleStore((state) => state.activeBookId);
   const historicalRegionsEnabled = useBibleStore((state) => state.historicalRegionsEnabled);
   const selectedHistoricalRegionIds = useBibleStore((state) => state.selectedHistoricalRegionIds);
@@ -141,15 +143,26 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
 
   const markers = useMemo<LocatedMarker[]>(() => {
     const grouped = new Map<string, LocatedMarker>();
-    for (const event of visibleEvents) {
-      const location = getPrimaryEventLocation(event, interfaceLocationById);
+    const activeEvent = activeEventId ? eventById.get(activeEventId) : undefined;
+    const markerEvents = activeEvent && !visibleEvents.some((event) => event.id === activeEvent.id)
+      ? [...visibleEvents, activeEvent]
+      : visibleEvents;
+
+    for (const event of markerEvents) {
+      const interfaceLocation = getPrimaryEventLocation(event, interfaceLocationById);
+      const explicitlySelected = event.id === activeEventId || interfaceLocation?.id === activeLocationId;
+      const location = explicitlySelected
+        ? getSelectedEventLocation(event, interfaceLocationById, locationById)
+        : interfaceLocation;
       if (!coordinates(location) || !location) continue;
-      const group = grouped.get(location.id) ?? { location, events: [] };
+      const usesSelectionFallback = explicitlySelected && !coordinates(interfaceLocation);
+      const group = grouped.get(location.id) ?? { location, events: [], usesSelectionFallback };
       group.events.push(event);
+      group.usesSelectionFallback ||= usesSelectionFallback;
       grouped.set(location.id, group);
     }
     return [...grouped.values()];
-  }, [visibleEvents]);
+  }, [activeEventId, activeLocationId, visibleEvents]);
 
   const route = useMemo(() => {
     const storyline = activeStorylineId ? storylineById.get(activeStorylineId) : undefined;
@@ -361,17 +374,22 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       const active = group.events.some((event) => event.id === activeEventId);
       const testament = group.events.some((event) => event.testament === "NT") ? "nt" : "ot";
       const radius = active ? 10 : group.events.length > 3 ? 8 : 7;
+      const fallbackClass = group.usesSelectionFallback ? " selection-fallback" : "";
       const marker = leaflet.circleMarker(point, {
         radius,
-        className: `bible-marker-dot ${testament}${active ? " active" : ""}`,
+        className: `bible-marker-dot ${testament}${active ? " active" : ""}${fallbackClass}`,
         color: active ? "#fffdf7" : "#fffaf1",
         fillColor: testament === "nt" ? "#2d7f8b" : "#bd5b34",
-        fillOpacity: 1,
+        fillOpacity: group.usesSelectionFallback ? 0.72 : 1,
         opacity: 1,
         weight: active ? 4 : 2.5,
+        dashArray: group.usesSelectionFallback ? "3 3" : undefined,
       });
+      const fallbackNote = group.usesSelectionFallback
+        ? `<small>${localizationLabels[group.location.localizationType]} · условный ориентир</small>`
+        : "";
       marker.bindTooltip(
-        `<strong>${group.location.ancientNameRu}</strong><span><b>${group.events.length}</b><i class="tooltip-count-word">${eventCountWord(group.events.length)}</i></span>`,
+        `<strong>${group.location.ancientNameRu}</strong><span><b>${group.events.length}</b><i class="tooltip-count-word">${eventCountWord(group.events.length)}</i></span>${fallbackNote}`,
         { direction: "top", offset: [0, -8], className: "bible-map-tooltip", permanent: false, interactive: true },
       );
       const openMarker = () => {
@@ -409,6 +427,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
       markerElement?.setAttribute("data-event-ids", group.events.map((event) => event.id).join(" "));
       markerElement?.setAttribute("data-latitude", String(group.location.latitude));
       markerElement?.setAttribute("data-longitude", String(group.location.longitude));
+      markerElement?.setAttribute("data-localization-type", group.location.localizationType);
+      markerElement?.setAttribute("data-location-display", group.usesSelectionFallback ? "selection-fallback" : "interface");
       markerTooltips.push({ marker, active });
     }
 
@@ -555,8 +575,8 @@ export function BibleMap({ visibleEvents, fitAllPoints = false }: BibleMapProps)
 
   useEffect(() => {
     const map = mapRef.current;
-    const active = activeEventId ? events.find((event) => event.id === activeEventId) : undefined;
-    const point = active ? coordinates(getPrimaryEventLocation(active, interfaceLocationById)) : undefined;
+    const active = activeEventId ? eventById.get(activeEventId) : undefined;
+    const point = active ? coordinates(getSelectedEventLocation(active, interfaceLocationById, locationById)) : undefined;
     if (!map || !point) return;
     if (storyPlaying && window.matchMedia(MOBILE_MAP_QUERY).matches) {
       map.stop();

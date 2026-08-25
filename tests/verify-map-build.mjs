@@ -35,7 +35,7 @@ if (!appCode.includes("bible-map-tooltip")) throw new Error("Automatic clickable
 if (!appCode.includes("biblical-river-") || !appCode.includes("tigris") || !appCode.includes("euphrates") || !appCode.includes("Быт. 2:14")) {
   throw new Error("The Tigris and Euphrates Scripture river layer is missing");
 }
-if (!appCode.includes("Все точки Писания") || !appCode.includes("Соединять точки маршрутом")) {
+if (!appCode.includes("Показать все точки без фильтров") || !appCode.includes("Соединять точки маршрутом")) {
   throw new Error("The all-points view or route visibility control is missing");
 }
 if (!appCode.includes("biblical-region-boundary") || !appCode.includes("Области и земли Писания") || !appCode.includes("Галилея") || !appCode.includes("Иудея")) {

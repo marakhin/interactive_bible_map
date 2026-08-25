@@ -62,6 +62,16 @@ describe("режимы отображения карты", () => {
     expect(useBibleStore.getState().eventSheetOpen).toBe(true);
   });
 
+  it("перемещает фокус книги на событие без открытия карточки", () => {
+    useBibleStore.getState().selectEvent("ascension");
+    expect(useBibleStore.getState().eventSheetOpen).toBe(true);
+
+    useBibleStore.getState().focusEvent("pentecost");
+    const state = useBibleStore.getState();
+    expect(state.activeEventId).toBe("pentecost");
+    expect(state.eventSheetOpen).toBe(false);
+  });
+
   it("закрывает фильтры при открытии навигатора изучения", () => {
     useBibleStore.getState().setFiltersOpen(true);
     useBibleStore.getState().setStudyOpen(true);

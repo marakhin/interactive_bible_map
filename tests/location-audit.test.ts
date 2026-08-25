@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { bibleBooks } from "@/data/books";
 import { eventById, events } from "@/data/events";
-import { locationById } from "@/data/locations";
+import { interfaceLocationById, locationById } from "@/data/locations";
 import { storylines } from "@/data/storylines";
-import { getPrimaryEventLocation } from "@/domain/event-locations";
+import { getPrimaryEventLocation, getSelectedEventLocation } from "@/domain/event-locations";
 import { getTimelineEvents } from "@/domain/timeline";
 
 const auditedPrimaryLocations: Record<string, string> = {
@@ -60,6 +60,22 @@ describe("аудит географии событий", () => {
     expect(locationById.get("capernaum")).toMatchObject({ localizationType: "identified", latitude: 32.881, longitude: 35.575 });
     expect(locationById.get("golgotha")).toMatchObject({ localizationType: "traditional", latitude: 31.77848, longitude: 35.2296 });
     expect(locationById.get("galilee-appearance")).toMatchObject({ localizationType: "unknown" });
+  });
+
+  it("возвращает условный ориентир для явно выбранного события без публичной координаты", () => {
+    const transfiguration = eventById.get("transfiguration")!;
+    expect(getPrimaryEventLocation(transfiguration, interfaceLocationById)).toMatchObject({
+      id: "mount-tabor",
+      latitude: undefined,
+      longitude: undefined,
+      localizationType: "unknown",
+    });
+    expect(getSelectedEventLocation(transfiguration, interfaceLocationById, locationById)).toMatchObject({
+      id: "mount-tabor",
+      latitude: 32.687,
+      longitude: 35.391,
+      localizationType: "traditional",
+    });
   });
 
   it("включает возвещённую у Марка встречу в Галилее без выдуманной точной горы", () => {
