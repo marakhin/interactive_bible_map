@@ -227,6 +227,40 @@ try {
   if ((await page.locator('.map-route-toggle').textContent())?.trim() !== "Линии: вкл") throw new Error("The Matthew route legend does not match the visible line");
   await page.screenshot({ path: resolve(".book-route-check.png"), fullPage: false });
 
+  const johnUrl = new URL(page.url());
+  johnUrl.search = "?book=john";
+  await page.goto(johnUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.locator('[data-map-ready="true"]').waitFor({ state: "attached", timeout: 20_000 });
+  await page.locator(".active-selection-title b", { hasText: "От Иоанна" }).waitFor({ state: "visible", timeout: 10_000 });
+  const johnRailIds = await page.locator(".event-rail > button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")));
+  if (johnRailIds.length !== 23) throw new Error(`Expected 23 John events, found ${johnRailIds.length}`);
+  const expectedJohnSequence = ["feeding-five-thousand", "john-walks-on-sea", "bread-of-life-capernaum", "woman-brought-to-christ", "john-temple-teaching", "blind-siloam"];
+  const johnSequence = johnRailIds.filter((eventId) => expectedJohnSequence.includes(eventId));
+  if (JSON.stringify(johnSequence) !== JSON.stringify(expectedJohnSequence)) {
+    throw new Error(`John 6–9 sequence is incorrect: ${johnSequence.join(",")}`);
+  }
+  const johnTimelineIds = await page.locator(".timeline-event").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-event-id")));
+  if (!expectedJohnSequence.every((eventId) => johnTimelineIds.includes(eventId))) {
+    throw new Error(`John timeline is incomplete: ${johnTimelineIds.join(",")}`);
+  }
+  const johnEventChecks = [
+    ["Господь идёт по морю к ученикам", "Ин. 6:16–21", "sea-galilee", "сошли к морю"],
+    ["Беседа о Хлебе жизни в Капернауме", "Ин. 6:22–71", "capernaum", "Сие говорил Он в синагоге, уча в Капернауме"],
+    ["Женщина, приведённая к Господу в храме", "Ин. 8:1–11", "jerusalem", "и Я не осуждаю тебя; иди и впредь не греши"],
+    ["Учение Господа в храме: «Я свет миру»", "Ин. 8:12–59", "jerusalem", "Я свет миру"],
+  ];
+  for (const [eventTitle, reference, locationId, synodalExcerpt] of johnEventChecks) {
+    await page.locator(".event-rail > button").filter({ hasText: eventTitle }).click();
+    await page.locator(`.bible-marker-dot.active[data-location-id="${locationId}"]`).waitFor({ state: "attached", timeout: 10_000 });
+    await page.locator('[data-synodal-text="true"]').waitFor({ state: "visible", timeout: 10_000 });
+    const eventReferences = await page.locator(".synodal-heading b").textContent();
+    const eventSynodalText = await page.locator(".synodal-text").textContent();
+    if (!eventReferences?.includes(reference)) throw new Error(`${eventTitle} is missing ${reference}: ${eventReferences}`);
+    if (!eventSynodalText?.includes(synodalExcerpt)) throw new Error(`${eventTitle} does not show the expected Synodal text: ${synodalExcerpt}`);
+  }
+  await page.screenshot({ path: resolve(".john-8-check.png"), fullPage: false });
+  await page.locator('.biblical-route-line[data-route-kind="book"]').waitFor({ state: "attached", timeout: 10_000 });
+
   await page.getByRole("button", { name: "Показать все точки без фильтров" }).click();
   await page.waitForTimeout(1000);
   const allMarkers = await page.locator(".bible-marker-dot").count();
@@ -248,7 +282,7 @@ try {
   }
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
-  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, scriptureOnlyMarkIds, lukeEvents: lukeRailIds.length, lukeSequence, centurionReferences, centurionPassageHeadings, regionCount, regionTooltipText, gadarenesTooltipText, gadarenesSourceText, gadarenesSourceUrls, regionSourceText, regionSourceUrls, galileeBoundaryStyle, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, people: expectedPeople.map(([, nameRu]) => nameRu), allMarkers, routes, url: page.url(), browserErrors: errors }));
+  console.log(JSON.stringify({ markEvents, markTimelineEvents: markTimelineIds.length, markMappedEvents: markMapIds.length, scriptureOnlyMarkIds, lukeEvents: lukeRailIds.length, lukeSequence, centurionReferences, centurionPassageHeadings, johnEvents: johnRailIds.length, johnSequence, regionCount, regionTooltipText, gadarenesTooltipText, gadarenesSourceText, gadarenesSourceUrls, regionSourceText, regionSourceUrls, galileeBoundaryStyle, bookRouteStyle, matthewRouteBox, contextCards, references, passageHeadings, galileeReferences, people: expectedPeople.map(([, nameRu]) => nameRu), allMarkers, routes, url: page.url(), browserErrors: errors }));
 } finally {
   await browser.close();
 }

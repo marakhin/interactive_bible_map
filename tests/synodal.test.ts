@@ -57,6 +57,27 @@ describe("локальный Синодальный перевод", () => {
     expect(passages[0].verses.at(-1)?.text).toContain("слугу выздоровевшим");
   });
 
+  it("покрывает Ин. 6:16–71 и Ин. 8 прямым Синодальным текстом", () => {
+    const expected = [
+      ["john-walks-on-sea", "Ин. 6:16–21", 6, "идущего по морю"],
+      ["bread-of-life-capernaum", "Ин. 6:22–71", 50, "Сие говорил Он в синагоге, уча в Капернауме"],
+      ["woman-brought-to-christ", "Ин. 8:1–11", 11, "и Я не осуждаю тебя; иди и впредь не греши"],
+      ["john-temple-teaching", "Ин. 8:12–59", 48, "Я свет миру"],
+    ] as const;
+
+    for (const [eventId, displayRu, verseCount, excerpt] of expected) {
+      const event = events.find((item) => item.id === eventId)!;
+      const passage = getSynodalPassages(event.scriptureReferences[0])[0];
+      expect(passage.displayRu).toBe(displayRu);
+      expect(passage.verses).toHaveLength(verseCount);
+      expect(passage.verses.some((verse) => verse.text.includes(excerpt))).toBe(true);
+    }
+
+    const walkingEvent = events.find((item) => item.id === "john-walks-on-sea")!;
+    expect(getSynodalPassages(walkingEvent.scriptureReferences[0])[0].verses[0].text)
+      .toBe("Когда же настал вечер, то ученики Его сошли к морю.");
+  });
+
   it("покрывает прямым текстом все события", () => {
     for (const event of events) {
       for (const reference of event.scriptureReferences) {

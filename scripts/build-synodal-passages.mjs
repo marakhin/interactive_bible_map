@@ -23,6 +23,12 @@ const bookOsisByDisplay = {
   "Мф": "Matt", "Мк": "Mark", "Лк": "Luke", "Ин": "John", "Деян": "Acts",
 };
 
+// The upstream russyn export truncates John 6:16 after "мор". Keep the
+// upstream snapshot intact and restore the verified Synodal wording here.
+const auditedSourceCorrections = new Map([
+  ["John.6.16", "Когда же настал вечер, то ученики Его сошли к морю."],
+]);
+
 const referencePattern = /^\s*((?:[1-4]\s*)?[А-ЯЁ][А-Яа-яЁё.]*)\s+(\d+):(\d+)(?:[–—-](?:(\d+):)?(\d+))?\s*$/u;
 
 function extractVerses(book, chapterStart, verseStart, chapterEnd, verseEnd) {
@@ -32,7 +38,8 @@ function extractVerses(book, chapterStart, verseStart, chapterEnd, verseEnd) {
     const start = chapter === chapterStart ? verseStart : 1;
     const end = chapter === chapterEnd ? Math.min(verseEnd, chapterVerses.length) : chapterVerses.length;
     for (let verse = start; verse <= end; verse += 1) {
-      const text = chapterVerses[verse - 1];
+      const sourceText = chapterVerses[verse - 1];
+      const text = auditedSourceCorrections.get(`${book.osis}.${chapter}.${verse}`) ?? sourceText;
       if (text) verses.push({ chapter, verse, text });
     }
   }

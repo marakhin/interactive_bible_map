@@ -84,6 +84,25 @@ describe("аудит географии событий", () => {
     expect(getPrimaryEventLocation(event, locationById)?.localizationType).toBe("unknown");
   });
 
+  it("сохраняет географическую последовательность Ин. 6:16–71 и Ин. 8", () => {
+    const expected = [
+      ["john-walks-on-sea", "Ин. 6:16–21", "sea-galilee"],
+      ["bread-of-life-capernaum", "Ин. 6:22–71", "capernaum"],
+      ["woman-brought-to-christ", "Ин. 8:1–11", "jerusalem"],
+      ["john-temple-teaching", "Ин. 8:12–59", "jerusalem"],
+    ] as const;
+
+    for (const [eventId, reference, mainLocationId] of expected) {
+      const event = eventById.get(eventId)!;
+      expect(event.scriptureReferences.map((item) => item.displayRu)).toEqual([reference]);
+      expect(getPrimaryEventLocation(event, locationById)?.id).toBe(mainLocationId);
+      expect(event.evidenceType).toBe("scripture_explicit");
+    }
+
+    expect(eventById.get("john-walks-on-sea")?.locations.map((item) => item.locationId)).toEqual(["sea-galilee", "capernaum"]);
+    expect(eventById.get("woman-brought-to-christ")?.locations.map((item) => item.locationId)).toEqual(["mount-olives", "jerusalem"]);
+  });
+
   it("сохраняет последовательность мест и честную неопределённость географии в Лк. 3–7", () => {
     const lukeEvents = events.filter((event) => event.scriptureReferences.some((reference) => reference.bookId === "luke"));
     const sequence = ["baptism-christ", "temptation-christ", "return-galilee", "nazareth-synagogue", "capernaum-ministry", "miraculous-catch", "luke-sermon-plain", "centurion-servant-healed", "nain-widow"];
