@@ -4,6 +4,8 @@ import { create } from "zustand";
 import type { TestamentFilter } from "@/domain/types";
 import type { TimeRange } from "@/domain/timeline";
 import { biblicalRegions } from "@/data/biblical-regions";
+import { bibleBookById } from "@/data/books";
+import { storylineById } from "@/data/storylines";
 
 type SearchMode = "all" | "events" | "people" | "places" | "stories";
 
@@ -103,10 +105,10 @@ export const useBibleStore = create<BibleState>((set) => ({
   fitTimeline: (timeWindow, timelineZoom, timeRange) => set({ timeWindow, timelineZoom, timeRange, timelineFocused: false }),
   selectEvent: (activeEventId) => set({ activeEventId, eventSheetOpen: Boolean(activeEventId), sheetTab: "scripture" }),
   focusEvent: (activeEventId) => set({ activeEventId, eventSheetOpen: false }),
-  selectStoryline: (activeStorylineId) => set({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectStoryline: (activeStorylineId) => set((state) => ({ activeStorylineId, activeCharacterId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false, testamentFilter: activeStorylineId && state.testamentFilter !== "ALL" && storylineById.get(activeStorylineId)?.testament !== state.testamentFilter ? "ALL" : state.testamentFilter })),
   selectCharacter: (activeCharacterId) => set({ activeCharacterId, activeStorylineId: undefined, activeLocationId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
   selectLocation: (activeLocationId) => set({ activeLocationId, activeStorylineId: undefined, activeCharacterId: undefined, activeBookId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
-  selectBook: (activeBookId) => set({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false }),
+  selectBook: (activeBookId) => set((state) => ({ activeBookId, activeLocationId: undefined, activeStorylineId: undefined, activeCharacterId: undefined, activeEventId: undefined, eventSheetOpen: false, timelineFocused: false, allPointsEnabled: false, storyPlaying: false, testamentFilter: activeBookId && state.testamentFilter !== "ALL" && bibleBookById.get(activeBookId)?.testament !== state.testamentFilter ? "ALL" : state.testamentFilter })),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setStudyOpen: (studyOpen) => set({ studyOpen, ...(studyOpen ? { filtersOpen: false } : {}) }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),

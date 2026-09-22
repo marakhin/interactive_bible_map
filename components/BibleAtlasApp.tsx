@@ -38,18 +38,18 @@ export default function BibleAtlasApp() {
     const initial = readUrlState();
     const state = useBibleStore.getState();
     if (initial.allPointsEnabled) state.showAllPoints();
-    if (initial.activeEventId && events.some((item) => item.id === initial.activeEventId)) state.selectEvent(initial.activeEventId);
     if (initial.activeStorylineId && storylineById.has(initial.activeStorylineId)) state.selectStoryline(initial.activeStorylineId);
     if (initial.activeCharacterId && characters.some((item) => item.id === initial.activeCharacterId)) state.selectCharacter(initial.activeCharacterId);
     if (initial.activeLocationId && interfaceLocationById.has(initial.activeLocationId)) state.selectLocation(initial.activeLocationId);
     if (initial.activeBookId && events.some((item) => item.scriptureReferences.some((ref) => ref.bookId === initial.activeBookId))) state.selectBook(initial.activeBookId);
     if (["ALL", "OT", "NT"].includes(initial.testamentFilter ?? "")) state.setTestament(initial.testamentFilter!);
+    if (initial.activeEventId && events.some((item) => item.id === initial.activeEventId)) state.selectEvent(initial.activeEventId);
     if (!localStorage.getItem("bible-map-onboarding")) setOnboarding(1);
     try { state.setBookmarks(JSON.parse(localStorage.getItem("bible-map-bookmarks") ?? "[]")); } catch { state.setBookmarks([]); }
     setReady(true);
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); state.setSearchOpen(true); }
-      if (event.key === "Escape") { state.closeEventSheet(); state.setSearchOpen(false); state.setFiltersOpen(false); }
+      if (event.key === "Escape") { state.closeEventSheet(); state.setSearchOpen(false); state.setFiltersOpen(false); state.setStudyOpen(false); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

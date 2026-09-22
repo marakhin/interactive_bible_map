@@ -34,6 +34,19 @@ describe("режимы отображения карты", () => {
     expect(state.testamentFilter).toBe("ALL");
   });
 
+  it("новая книга или сюжет снимает только несовместимый фильтр Завета", () => {
+    useBibleStore.getState().setTestament("NT");
+    useBibleStore.getState().selectBook("mark");
+    expect(useBibleStore.getState().testamentFilter).toBe("NT");
+    useBibleStore.getState().selectBook("genesis");
+    expect(useBibleStore.getState().testamentFilter).toBe("ALL");
+    useBibleStore.getState().setTestament("OT");
+    useBibleStore.getState().selectStoryline("abraham");
+    expect(useBibleStore.getState().testamentFilter).toBe("OT");
+    useBibleStore.getState().selectStoryline("christ");
+    expect(useBibleStore.getState().testamentFilter).toBe("ALL");
+  });
+
   it("скрывает маршрут независимо от точек и выбранного сюжета", () => {
     useBibleStore.getState().selectStoryline("abraham");
     useBibleStore.getState().toggleRoutes();

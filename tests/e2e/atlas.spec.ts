@@ -10,7 +10,7 @@ test("путь Авраама открывает маршрут и событи�
   const studyMenu = page.getByLabel("Открыть выбор сюжета");
   if (await studyMenu.isVisible()) await studyMenu.click();
   await page.getByRole("button", { name: /Путь Авраама/ }).first().click();
-  await expect(page.getByText("Путь Авраама", { exact: true }).first()).toBeVisible();
+  await expect(page).toHaveURL(/story=abraham/);
   const timeline = page.locator(".timeline");
   await expect(timeline).not.toHaveAttribute("data-range-start", "-2200");
   const fittedRange = await timeline.evaluate((element) => ({
@@ -22,6 +22,7 @@ test("путь Авраама открывает маршрут и событи�
   expect(fittedRange.rangeStart).toBe(fittedRange.windowStart);
   expect(fittedRange.rangeEnd).toBe(fittedRange.windowEnd);
   if (await studyMenu.isVisible()) await studyMenu.click();
+  await expect(page.locator(".active-selection-title b")).toHaveText("Путь Авраама");
   const eventButton = page.locator('.event-rail [data-event-id="abraham-call"]');
   await eventButton.scrollIntoViewIfNeeded();
   await eventButton.click();

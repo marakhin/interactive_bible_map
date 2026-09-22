@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { ArrowLeft, ArrowRight, Bookmark, BookOpen, CalendarDays, ChevronDown, ChevronUp, Info, MapPin, Pause, Share2, Users, X } from "lucide-react";
 import { characterById } from "@/data/characters";
-import { eventById, events } from "@/data/events";
+import { eventById } from "@/data/events";
 import { interfaceLocationById } from "@/data/locations";
-import { storylineById } from "@/data/storylines";
+import { getEventNavigation, type EventNavigationTarget } from "@/domain/event-navigation";
 import { getSynodalPassages, synodalMetadata } from "@/data/synodal";
 import { chronologyLabels, localizationLabels } from "@/domain/types";
 import { getPrimaryEventLocation } from "@/domain/event-locations";
@@ -24,6 +24,13 @@ export function EventSheet() {
   const toggleBookmark = useBibleStore((state) => state.toggleBookmark);
   const storyPlaying = useBibleStore((state) => state.storyPlaying);
   const setStoryPlaying = useBibleStore((state) => state.setStoryPlaying);
+  const activeBookId = useBibleStore((state) => state.activeBookId);
+  const activeStorylineId = useBibleStore((state) => state.activeStorylineId);
+  const activeCharacterId = useBibleStore((state) => state.activeCharacterId);
+  const activeLocationId = useBibleStore((state) => state.activeLocationId);
+  const testamentFilter = useBibleStore((state) => state.testamentFilter);
+  const selectBook = useBibleStore((state) => state.selectBook);
+  const selectStoryline = useBibleStore((state) => state.selectStoryline);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
@@ -48,11 +55,17 @@ export function EventSheet() {
 
   if (!event || !eventSheetOpen) return null;
   const mainLocation = getPrimaryEventLocation(event, interfaceLocationById);
-  const storyline = event.storylineIds.map((id) => storylineById.get(id)).find(Boolean);
-  const sequence = storyline?.eventIds ?? events.map((item) => item.id);
-  const index = sequence.indexOf(event.id);
-  const previousId = index > 0 ? sequence[index - 1] : undefined;
-  const nextId = index >= 0 && index < sequence.length - 1 ? sequence[index + 1] : undefined;
+  const { previous, next, kind } = getEventNavigation(event.id, { activeBookId, activeStorylineId, activeCharacterId, activeLocationId, testamentFilter });
+  const navigate = (target?: EventNavigationTarget) => {
+    if (!target) return;
+    if (target.bookId) selectBook(target.bookId);
+    if (target.storylineId) selectStoryline(target.storylineId);
+    selectEvent(target.eventId);
+  };
+  const targetTitle = (target: EventNavigationTarget) => target.collectionTitle ?? eventById.get(target.eventId)?.titleRu;
+  const previousLabel = previous?.bookId ? "Предыдущая книга" : previous?.storylineId ? "Предыдущий сюжет" : "Предыдущее";
+  const nextLabel = next?.bookId ? "Следующая книга" : next?.storylineId ? "Следующий сюжет" : "Следующее";
+  const boundary = kind === "book" ? "книг" : kind === "story" ? "сюжетов" : "событий";
   const scripturePassages = event.scriptureReferences.flatMap((reference) => getSynodalPassages(reference));
 
   const finishDismiss = () => {
@@ -158,9 +171,9 @@ export function EventSheet() {
         {!!event.characters.length && <div className="participants"><div className="section-kicker"><Users size={16} />Участники</div><div>{event.characters.map((id) => { const person = characterById.get(id); return person ? <button key={id} onClick={() => { selectEvent(undefined); selectCharacter(id); }}>{person.nameRu}</button> : null; })}</div></div>}
       </div>
       <div className="sheet-nav">
-        <button disabled={!previousId} onClick={() => previousId && selectEvent(previousId)}><ArrowLeft size={18} /><span><small>Предыдущее</small>{previousId ? eventById.get(previousId)?.titleRu : "Начало сюжета"}</span></button>
+        <button disabled={!previous} title={previous ? `${previousLabel}: ${targetTitle(previous)}` : undefined} onClick={() => navigate(previous)}><ArrowLeft size={18} /><span><small>{previousLabel}</small>{previous ? targetTitle(previous) : `Начало ${boundary}`}</span></button>
         <button className="share-event" aria-label="Поделиться событием" onClick={() => navigator.clipboard?.writeText(window.location.href)}><Share2 size={18} /></button>
-        <button disabled={!nextId} onClick={() => nextId && selectEvent(nextId)}><span><small>Следующее</small>{nextId ? eventById.get(nextId)?.titleRu : "Конец сюжета"}</span><ArrowRight size={18} /></button>
+        <button disabled={!next} title={next ? `${nextLabel}: ${targetTitle(next)}` : undefined} onClick={() => navigate(next)}><span><small>{nextLabel}</small>{next ? targetTitle(next) : `Конец ${boundary}`}</span><ArrowRight size={18} /></button>
       </div>
     </aside>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookMarked, Bookmark, ChevronRight, CircleUserRound, History, Pause, Play, Route, X } from "lucide-react";
 import { bibleBookById, bibleBooks } from "@/data/books";
 import { characters } from "@/data/characters";
@@ -31,6 +31,8 @@ export function StudyPanel() {
   const setStoryPlaying = useBibleStore((state) => state.setStoryPlaying);
   const setStorySpeed = useBibleStore((state) => state.setStorySpeed);
   const [lastEventId, setLastEventId] = useState<string | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
   useEffect(() => { setLastEventId(localStorage.getItem("bible-map-last-event")); }, [activeEventId]);
   const bookmarkedEvents = events.filter((event) => bookmarkIds.includes(event.id));
   const lastEvent = lastEventId ? events.find((event) => event.id === lastEventId) : undefined;
@@ -52,8 +54,9 @@ export function StudyPanel() {
         : activeBookId
           ? bibleBookById.get(activeBookId)?.titleRu
           : undefined;
-  const selectStory = (id: string) => { selectStoryline(id); track("story_started", { id }); setOpen(false); };
-  const selectBookStudy = (id: string) => { selectBook(id); track("book_started", { id }); setOpen(false); };
+  const showCatalog = (value: boolean) => { setCatalogOpen(value); panelRef.current?.scrollTo({ top: 0 }); };
+  const selectStory = (id: string) => { selectStoryline(id); track("story_started", { id }); showCatalog(false); setOpen(false); };
+  const selectBookStudy = (id: string) => { selectBook(id); track("book_started", { id }); showCatalog(false); setOpen(false); };
   const showEveryPoint = () => { showAllPoints(); track("all_points_opened"); setOpen(false); };
   const toggleStoryPlayback = () => {
     const nextPlaying = !storyPlaying;
@@ -62,9 +65,12 @@ export function StudyPanel() {
   };
 
   return (
-    <aside className={`study-panel ${open ? "open" : ""}`} aria-label="Выбор пути изучения">
+    <>
+    {open && <button className="study-backdrop" aria-label="Закрыть навигатор и вернуться к карте" onClick={() => setOpen(false)} />}
+    <aside ref={panelRef} className={`study-panel ${open ? "open" : ""}`} aria-label="Выбор пути изучения">
       <div className="study-head"><div><span className="eyebrow">Навигатор</span><h2>Изучать Писание</h2></div><button aria-label="Закрыть" onClick={() => setOpen(false)}><X size={20} /></button></div>
-      {activeTitle ? <section className="active-selection">
+      {activeTitle && <button className="study-switch" onClick={() => showCatalog(!catalogOpen)}>{catalogOpen ? "Вернуться к текущему разделу" : "Выбрать другую книгу или сюжет"}<ChevronRight size={17} /></button>}
+      {activeTitle && !catalogOpen ? <section className="active-selection">
         <div className="active-selection-title"><span>{activeBookId ? <BookMarked size={17} /> : <History size={17} />}</span><div><small>{activeBookId ? "Книга на карте" : "Сейчас на карте"}</small><b>{activeTitle}</b></div></div>
         {activeStorylineId && <div className="story-player"><button onClick={toggleStoryPlayback}>{storyPlaying ? <Pause size={17} /> : <Play size={17} />}{storyPlaying ? "Пауза" : "История"}</button><div>{([0.5, 1, 2] as const).map((speed) => <button key={speed} aria-pressed={storySpeed === speed} onClick={() => setStorySpeed(speed)}>{speed}×</button>)}</div></div>}
         {activeBookId && <p className="book-selection-note">На карте показаны места событий, прямо связанных с этой книгой. Выберите отрывок, чтобы открыть текст Писания.</p>}
@@ -73,11 +79,12 @@ export function StudyPanel() {
       </section> : <>
         <section><h3><Route size={17} />Сюжетные линии</h3><div className="study-list">{storylines.filter((item) => item.importance === 5).map((story) => <button key={story.id} onClick={() => selectStory(story.id)}><span className={`story-dot ${story.testament.toLowerCase()}`} style={{ backgroundColor: story.color }} /><div><b>{story.titleRu}</b><small>{story.eventIds.length} событий · {story.testament === "OT" ? "ВЗ" : "НЗ"}</small></div><ChevronRight size={17} /></button>)}</div></section>
         <section><h3><BookMarked size={17} />Книги Писания</h3><div className="study-list book-study-list">{bibleBooks.map((book) => <button key={book.id} data-book-id={book.id} onClick={() => selectBookStudy(book.id)}><BookMarked size={15} className={book.testament.toLowerCase()} /><div><b>{book.titleRu}</b><small>{book.placeCount} мест · {book.eventCount} событий · {book.testament === "OT" ? "ВЗ" : "НЗ"}</small></div><ChevronRight size={17} /></button>)}</div></section>
-        <section><h3><CircleUserRound size={17} />Люди Писания</h3><div className="people-chips">{characters.filter((item) => featuredPersonIds.includes(item.id)).map((person) => <button key={person.id} data-character-id={person.id} onClick={() => { selectCharacter(person.id); setOpen(false); }}>{person.nameRu}</button>)}</div></section>
+        <section><h3><CircleUserRound size={17} />Люди Писания</h3><div className="people-chips">{characters.filter((item) => featuredPersonIds.includes(item.id)).map((person) => <button key={person.id} data-character-id={person.id} onClick={() => { selectCharacter(person.id); showCatalog(false); setOpen(false); }}>{person.nameRu}</button>)}</div></section>
         {lastEvent && <section><h3><History size={17} />Продолжить изучение</h3><button className="continue-card" onClick={() => { selectEvent(lastEvent.id); setOpen(false); }}><div><b>{lastEvent.titleRu}</b><small>{lastEvent.scriptureReferences[0].displayRu}</small></div><ChevronRight size={17} /></button></section>}
         {bookmarkedEvents.length > 0 && <section><h3><Bookmark size={17} />Закладки</h3><div className="study-list">{bookmarkedEvents.slice(0, 5).map((event) => <button key={event.id} onClick={() => { selectEvent(event.id); setOpen(false); }}><Bookmark size={14} /><div><b>{event.titleRu}</b><small>{event.scriptureReferences[0].displayRu}</small></div><ChevronRight size={17} /></button>)}</div></section>}
         <section className="study-note"><BookMarked size={20} /><p><b>Карта следует Писанию.</b><br />Даты и локализации, которых нет в тексте, отмечены как приблизительные или спорные.</p></section>
       </>}
     </aside>
+    </>
   );
 }
