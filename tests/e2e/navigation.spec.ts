@@ -26,7 +26,7 @@ test("навигатор целиком под шапкой и закрывае�
   expect(layout.panel.top).toBeGreaterThanOrEqual(layout.header.bottom);
   expect(layout.heading.top).toBeGreaterThanOrEqual(layout.header.bottom);
   expect(layout.panel.bottom).toBeLessThanOrEqual(layout.height + 1);
-  expect(layout.width - layout.panel.right).toBeGreaterThanOrEqual(55);
+  expect(layout.width - layout.panel.right).toBeGreaterThanOrEqual(95);
   if (testInfo.project.name === "mobile-safari") await page.screenshot({ path: ".navigation-drawer-check.png" });
   const originalUrl = page.url();
   await page.touchscreen.tap(layout.width - 20, layout.header.bottom + 180);
@@ -35,6 +35,28 @@ test("навигатор целиком под шапкой и закрывае�
   await openStudy(page);
   await page.keyboard.press("Escape");
   await expect(panel).toBeHidden();
+});
+
+test("касание закрывает навигатор поверх открытой карточки", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "desktop" || testInfo.project.name === "mobile-safari-landscape", "В альбомном режиме открытая карточка занимает весь экран и перекрывает header.");
+  await page.goto("/?event=abraham-call");
+  await expect(page.locator(".event-sheet")).toBeVisible();
+  await openStudy(page);
+  const panel = page.locator(".study-panel");
+  const point = await page.evaluate(() => {
+    const panelRect = document.querySelector(".study-panel")!.getBoundingClientRect();
+    const sheetRect = document.querySelector(".event-sheet")!.getBoundingClientRect();
+    return {
+      x: (panelRect.right + window.innerWidth) / 2,
+      y: Math.max(sheetRect.top + 60, document.querySelector(".app-header")!.getBoundingClientRect().bottom + 150),
+    };
+  });
+  await expect(panel).toBeVisible();
+  await page.touchscreen.tap(point.x, point.y);
+  await expect(panel).toBeHidden();
+  await expect(page.locator(".event-sheet h2")).toHaveText("Призвание Аврама");
+  await expect(page.locator('.bible-marker-dot.active[data-event-ids~="abraham-call"]')).toBeAttached();
+  if (testInfo.project.name === "mobile-safari") await page.screenshot({ path: ".navigation-dismiss-with-sheet-check.png", animations: "disabled" });
 });
 
 test("другая книга выбирается без сброса текущего раздела", async ({ page }) => {

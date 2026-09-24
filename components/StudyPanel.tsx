@@ -33,6 +33,15 @@ export function StudyPanel() {
   const [lastEventId, setLastEventId] = useState<string | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const dismissOutsidePanel = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !panelRef.current?.contains(target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", dismissOutsidePanel, true);
+    return () => document.removeEventListener("pointerdown", dismissOutsidePanel, true);
+  }, [open, setOpen]);
   useEffect(() => { setLastEventId(localStorage.getItem("bible-map-last-event")); }, [activeEventId]);
   const bookmarkedEvents = events.filter((event) => bookmarkIds.includes(event.id));
   const lastEvent = lastEventId ? events.find((event) => event.id === lastEventId) : undefined;
