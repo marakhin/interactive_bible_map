@@ -28,6 +28,7 @@
 *.pem
 
 # debug
+/debug.log
 npm-debug.log*
 .dev-*.log
 .prod-*.log
